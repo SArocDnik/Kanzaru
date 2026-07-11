@@ -199,8 +199,8 @@ D:\Kanzaru\
 
 ### Phase 3: Frontend — Web UI
 
-- [ ] **Task 9:** Frontend scaffold (Vite + React + TS + Tailwind)
-- [ ] **Task 10:** Upload panel + project list UI
+- [x] **Task 9:** Frontend scaffold (Vite + React + TS + Tailwind)
+- [x] **Task 10:** Upload panel + project list UI
 - [ ] **Task 11:** Chapter manager UI (view, edit, reorder)
 - [ ] **Task 12:** Analysis view (summary + character graph with reactflow)
 - [ ] **Task 13:** Translation view (SSE streaming, emotion cue edit)

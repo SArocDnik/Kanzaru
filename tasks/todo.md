@@ -241,15 +241,15 @@
 **Description:** Init React + Vite + TypeScript + Tailwind. Basic layout, routing, API client.
 **Acceptance criteria:**
 
-- [ ] Vite + React + TS project created
-- [ ] Tailwind CSS configured
-- [ ] API client (`fetch` wrapper) with base URL config
-- [ ] Basic layout: sidebar + main content area
-- [ ] React Router setup (projects, upload, translate views)
-- [ ] TanStack Query provider configured
+- [x] Vite + React + TS project created
+- [x] Tailwind CSS configured
+- [x] API client (`fetch` wrapper) with base URL config
+- [x] Basic layout: sidebar + main content area
+- [x] React Router setup (projects, upload, translate views)
+- [x] TanStack Query provider configured
   **Verification:**
-- [ ] `npm run dev` starts at `localhost:5173`
-- [ ] Can call backend `/health` from frontend
+- [x] `npm run dev` starts at `localhost:5173`
+- [x] Can call backend `/health` from frontend
   **Dependencies:** None (parallel with Phase 1-2 possible)
   **Files likely touched:**
 
@@ -268,15 +268,15 @@
 **Description:** UI for creating projects, uploading PDF/text, viewing project list.
 **Acceptance criteria:**
 
-- [ ] Project list page: cards with name, lang pair, chapter count, status
-- [ ] New project modal: name, source lang, target lang
-- [ ] Upload panel: drag-drop PDF or paste text
-- [ ] Upload progress indicator
-- [ ] Navigate to project detail after upload
+- [x] Project list page: cards with name, lang pair, chapter count, status
+- [x] New project modal: name, source lang, target lang
+- [x] Upload panel: drag-drop PDF or paste text
+- [x] Upload progress indicator
+- [x] Navigate to project detail after upload
   **Verification:**
-- [ ] Create project → appears in list
-- [ ] Upload PDF → triggers extraction + chapter detection
-- [ ] Chapters visible in project detail
+- [x] Create project → appears in list
+- [x] Upload PDF → triggers extraction + chapter detection
+- [ ] Chapters visible in project detail (Task 11)
   **Dependencies:** Task 9
   **Files likely touched:**
 

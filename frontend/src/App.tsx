@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import Layout from "./components/Layout"
 import ProjectList from "./components/ProjectList"
 import UploadPanel from "./components/UploadPanel"
+import ChapterList from "./components/ChapterList"
+import ChapterDetail from "./components/ChapterDetail"
 
 const queryClient = new QueryClient()
 
@@ -14,7 +16,8 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<ProjectList />} />
             <Route path="/upload" element={<UploadPanel />} />
-            <Route path="/projects/:id" element={<div>Project detail — coming in Task 11</div>} />
+            <Route path="/projects/:id" element={<ChapterList />} />
+            <Route path="/projects/:id/chapters/:chapterId" element={<ChapterDetail />} />
           </Route>
         </Routes>
       </BrowserRouter>
