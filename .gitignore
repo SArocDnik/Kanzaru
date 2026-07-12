@@ -26,5 +26,9 @@ Thumbs.db
 # CodeGraph index
 .codegraph/
 
+# Server logs
+server_err.log
+*.log
+
 # Large test files
 *.pdf
