@@ -23,10 +23,10 @@ def _setup_chapter_with_chars(client: TestClient):
     pid = create.json()["id"]
     client.post(f"/projects/{pid}/upload", data={"text": "Some text"})
 
-    with patch("src.api.routes.chapters.LLMClient") as mock_cls:
+    with patch("src.api.routes.chapters.get_llm_client") as mock_factory:
         mock_c = MagicMock()
         mock_c.chat.return_value = MOCK_ANALYSIS
-        mock_cls.return_value = mock_c
+        mock_factory.return_value = mock_c
         detect = client.post(f"/projects/{pid}/chapters/detect")
         ch_id = detect.json()[0]["id"]
         client.post(f"/chapters/{ch_id}/analyze")
@@ -48,10 +48,10 @@ def test_list_characters(client: TestClient):
 def test_map_relationships_api(client: TestClient):
     pid, ch_id = _setup_chapter_with_chars(client)
 
-    with patch("src.api.routes.characters.LLMClient") as mock_cls:
+    with patch("src.api.routes.characters.get_llm_client") as mock_factory:
         mock_c = MagicMock()
         mock_c.chat.return_value = MOCK_RELS
-        mock_cls.return_value = mock_c
+        mock_factory.return_value = mock_c
         resp = client.post(f"/chapters/{ch_id}/relationships")
 
     assert resp.status_code == 200
@@ -61,10 +61,10 @@ def test_map_relationships_api(client: TestClient):
 def test_list_relationships(client: TestClient):
     pid, ch_id = _setup_chapter_with_chars(client)
 
-    with patch("src.api.routes.characters.LLMClient") as mock_cls:
+    with patch("src.api.routes.characters.get_llm_client") as mock_factory:
         mock_c = MagicMock()
         mock_c.chat.return_value = MOCK_RELS
-        mock_cls.return_value = mock_c
+        mock_factory.return_value = mock_c
         client.post(f"/chapters/{ch_id}/relationships")
 
     resp = client.get(f"/projects/{pid}/relationships")
