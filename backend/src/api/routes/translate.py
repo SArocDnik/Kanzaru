@@ -7,7 +7,7 @@ from src.api.deps import get_session
 from src.config import settings
 from src.models.db import Chapter, Character, CharacterRelationship, GlossaryEntry, Project
 from src.services.translator import TranslationContext, translate_chapter, translate_chapter_stream, translate_chapter_3step
-from src.services.llm_client import LLMClient
+from src.services.llm_factory import get_llm_client
 
 router = APIRouter(tags=["translate"])
 
@@ -56,7 +56,7 @@ def translate_chapter_route(chapter_id: int, session: Session = Depends(get_sess
         raise HTTPException(status_code=400, detail="Chapter has no text to translate")
 
     ctx = _build_context(session, chapter)
-    client = LLMClient(url=settings.ollama_url, model=settings.ollama_model)
+    client = get_llm_client(quality=False)
     translated = translate_chapter(chapter.original_text, ctx, client)
 
     chapter.translated_text = translated
@@ -95,7 +95,7 @@ def translate_chapter_quality_route(chapter_id: int, session: Session = Depends(
         raise HTTPException(status_code=400, detail="Chapter has no text to translate")
 
     ctx = _build_context(session, chapter)
-    client = LLMClient(url=settings.ollama_url, model=settings.ollama_model)
+    client = get_llm_client(quality=True)
     translated = translate_chapter_3step(chapter.original_text, ctx, client)
 
     chapter.translated_text = translated
@@ -115,7 +115,7 @@ async def translate_chapter_stream_route(chapter_id: int, session: Session = Dep
         raise HTTPException(status_code=400, detail="Chapter has no text to translate")
 
     ctx = _build_context(session, chapter)
-    client = LLMClient(url=settings.ollama_url, model=settings.ollama_model)
+    client = get_llm_client(quality=False)
 
     async def event_generator():
         full_text = ""

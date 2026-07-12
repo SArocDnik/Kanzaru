@@ -4,9 +4,9 @@ from src.api.deps import get_session
 from src.config import settings
 from src.models.db import Project, Chapter, Character
 from src.models.schemas import ChapterCreate, ChapterRead, ChapterUpdate
-from src.services.chapter_splitter import detect_chapters
+from src.services.chapter_splitter import detect_chapters_with_fallback
 from src.services.analyzer import analyze_chapter
-from src.services.llm_client import LLMClient
+from src.services.llm_factory import get_llm_client
 
 router = APIRouter(tags=["chapters"])
 
@@ -46,7 +46,7 @@ def detect_chapters_route(project_id: int, session: Session = Depends(get_sessio
         session.delete(ch)
     session.commit()
 
-    detected = detect_chapters(source_text, project.source_lang)
+    detected = detect_chapters_with_fallback(source_text, client=get_llm_client(quality=False), lang_hint=project.source_lang)
 
     created = []
     for i, ch in enumerate(detected):
@@ -111,7 +111,7 @@ def analyze_chapter_route(chapter_id: int, session: Session = Depends(get_sessio
 
     project = session.get(Project, chapter.project_id)
 
-    client = LLMClient(url=settings.ollama_url, model=settings.ollama_model)
+    client = get_llm_client(quality=False)
     result = analyze_chapter(chapter.original_text, project.source_lang if project else "auto", client)
 
     chapter.summary = result.summary

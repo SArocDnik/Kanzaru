@@ -18,10 +18,10 @@ def test_analyze_chapter_api(client: TestClient):
     pid = create.json()["id"]
     client.post(f"/projects/{pid}/upload", data={"text": "Some chapter text content here for analysis."})
 
-    with patch("src.api.routes.chapters.LLMClient") as mock_cls:
+    with patch("src.api.routes.chapters.get_llm_client") as mock_factory:
         mock_client = MagicMock()
         mock_client.chat.return_value = MOCK_ANALYSIS
-        mock_cls.return_value = mock_client
+        mock_factory.return_value = mock_client
 
         resp = client.post(f"/projects/{pid}/chapters/detect")
         chapter_id = resp.json()[0]["id"]
@@ -38,10 +38,10 @@ def test_get_analysis(client: TestClient):
     pid = create.json()["id"]
     client.post(f"/projects/{pid}/upload", data={"text": "Text"})
 
-    with patch("src.api.routes.chapters.LLMClient") as mock_cls:
+    with patch("src.api.routes.chapters.get_llm_client") as mock_factory:
         mock_client = MagicMock()
         mock_client.chat.return_value = MOCK_ANALYSIS
-        mock_cls.return_value = mock_client
+        mock_factory.return_value = mock_client
 
         detect = client.post(f"/projects/{pid}/chapters/detect")
         chapter_id = detect.json()[0]["id"]

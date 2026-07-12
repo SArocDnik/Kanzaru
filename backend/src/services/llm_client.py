@@ -1,9 +1,10 @@
 import httpx
 import ollama
 from typing import Generator
+from src.services.llm_provider import LLMProvider
 
 
-class LLMClient:
+class LLMClient(LLMProvider):
     def __init__(self, url: str = "http://localhost:11434", model: str = "qwen2.5:7b"):
         self.url = url
         self.model = model

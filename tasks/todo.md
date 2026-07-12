@@ -70,7 +70,7 @@
 - [x] `PUT /chapters/{id}` — edit
 - [x] `POST /projects/{id}/chapters` — manual add
 - [x] `DELETE /chapters/{id}` — delete
-- [ ] LLM-assisted fallback khi không match pattern
+- [x] LLM-assisted fallback khi không match pattern (Tasks C1-C4)
 
 **Files:**
 - `backend/src/services/chapter_splitter.py`
@@ -367,6 +367,212 @@
 ---
 
 ## Checkpoint: Translation Quality — DONE
+
+---
+
+### Task G1: LLMProvider Protocol + refactor LLMClient
+
+**Description:** Tạo interface chung cho LLM provider. Refactor `LLMClient` (Ollama) implement interface này.
+
+- [x] `src/services/llm_provider.py` — Protocol `LLMProvider` với `chat()`, `stream()`, `health_check()`
+- [x] `LLMClient` implements `LLMProvider` (thêm type hint)
+- [x] Tests pass (`test_llm_client.py`)
+
+**Files:**
+- `backend/src/services/llm_provider.py` (new)
+- `backend/src/services/llm_client.py`
+
+---
+
+### Task G2: Update config.py thêm Gemini settings
+
+**Description:** Thêm config cho Gemini API: provider selector, api_key, model, quality_model, request_delay, max_retries.
+
+- [x] Settings: `llm_provider`, `gemini_api_key`, `gemini_model`, `gemini_quality_model`, `gemini_request_delay`, `gemini_max_retries`
+- [x] Default: `llm_provider="gemini"`, `gemini_model="gemini-flash-latest"`, `gemini_quality_model="gemini-pro-latest"`, `gemini_request_delay=4.0`, `gemini_max_retries=3`
+- [x] Đọc từ `.env` với prefix `KANZARU_`
+
+**Files:**
+- `backend/src/config.py`
+
+---
+
+### Task G3: Tạo GeminiClient
+
+**Description:** LLM client cho Google Gemini API. REST qua httpx. Có retry + rate limit. Implement `LLMProvider` interface.
+
+- [x] `GeminiClient(api_key, model, request_delay, max_retries)` — constructor
+- [x] `chat(messages) -> str` — gọi `generateContent`, trả text từ `candidates[0].content.parts[0].text`
+- [x] `stream(messages) -> Generator[str]` — gọi `streamGenerateContent?alt=sse`, yield chunks
+- [x] `health_check() -> dict` — trả `{"online": bool, "provider": "gemini", "model": str}`
+- [x] Retry: 429/503/timeout → backoff 2^n, max `max_retries` lần
+- [x] Rate limit: `time.sleep(request_delay)` giữa các request
+- [x] Map messages: `assistant` → `model`, `content` → `parts[0].text`
+- [x] `safetySettings: BLOCK_NONE` cho 4 categories (tránh block truyện action)
+- [x] Error: 400/401/403 raise RuntimeError, không retry
+- [x] 13 tests pass (`test_gemini_client.py`)
+- [x] Manual test: chat + stream hoạt động với key thật
+
+**Files:**
+- `backend/src/services/gemini_client.py` (new)
+- `backend/tests/test_gemini_client.py` (new)
+
+---
+
+### Task G4: Tạo llm_factory.py
+
+**Description:** Factory function trả LLM provider theo config.
+
+- [x] `get_llm_client(quality=False) -> LLMProvider`
+- [x] `quality=True` → dùng `gemini_quality_model` (Pro)
+- [x] `llm_provider="ollama"` → trả `LLMClient`, ignore `quality`
+- [x] `llm_provider="gemini"` + key rỗng → raise RuntimeError
+- [x] 5 tests pass (`test_llm_factory.py`)
+
+**Files:**
+- `backend/src/services/llm_factory.py` (new)
+- `backend/tests/test_llm_factory.py` (new)
+
+---
+
+### Task G5: Refactor translate route dùng factory
+
+**Description:** Sửa `api/routes/translate.py` dùng `get_llm_client()` thay vì `LLMClient(...)`.
+
+- [x] `POST /chapters/{id}/translate` dùng `get_llm_client(quality=False)`
+- [x] `POST /chapters/{id}/translate/quality` dùng `get_llm_client(quality=True)`
+- [x] `GET /chapters/{id}/translate/stream` dùng `get_llm_client(quality=False)`
+- [x] Tests pass (`test_translate_api.py`)
+
+**Files:**
+- `backend/src/api/routes/translate.py`
+- `backend/tests/test_translate_api.py`
+
+---
+
+### Task G6: Refactor chapters route (analyze) dùng factory
+
+**Description:** Sửa `api/routes/chapters.py` endpoint `/chapters/{id}/analyze` dùng `get_llm_client()`.
+
+- [x] `analyze_chapter_route` dùng `get_llm_client(quality=False)`
+- [x] Tests pass (`test_analyze_api.py`)
+
+**Files:**
+- `backend/src/api/routes/chapters.py`
+- `backend/tests/test_analyze_api.py`
+
+---
+
+### Task G7: Refactor characters route (relationships) dùng factory
+
+**Description:** Sửa `api/routes/characters.py` endpoint `/chapters/{id}/relationships` dùng `get_llm_client()`.
+
+- [x] `map_chapter_relationships` dùng `get_llm_client(quality=False)`
+- [x] Tests pass (`test_relationships.py`, `test_characters_api.py`)
+
+**Files:**
+- `backend/src/api/routes/characters.py`
+- `backend/tests/test_characters_api.py`
+
+---
+
+### Task G8: Update llm route — health + models cho cả 2 provider
+
+**Description:** Sửa `api/routes/llm.py` để health check + list models hoạt động cho cả Gemini lẫn Ollama.
+
+- [x] `GET /llm/health` gọi `get_llm_client().health_check()` + thêm `provider` field
+- [x] `GET /llm/models` — Gemini trả list gợi ý, Ollama trả từ API
+- [x] Response có field `provider`
+
+**Files:**
+- `backend/src/api/routes/llm.py`
+
+---
+
+### Task G9: Update .env.example
+
+**Description:** Thêm Gemini vars vào `.env.example` với comment hướng dẫn lấy key.
+
+- [x] `.env.example` có: `KANZARU_LLM_PROVIDER`, `KANZARU_GEMINI_API_KEY`, `KANZARU_GEMINI_MODEL`, `KANZARU_GEMINI_QUALITY_MODEL`, `KANZARU_GEMINI_REQUEST_DELAY`, `KANZARU_GEMINI_MAX_RETRIES`
+- [x] Comment: "get key at https://aistudio.google.com/apikey"
+- [x] Không chứa key thật
+
+**Files:**
+- `backend/.env.example`
+
+---
+
+## Checkpoint: Gemini Integration — DONE
+- [x] Gemini là default provider, Ollama vẫn dùng được khi set `KANZARU_LLM_PROVIDER=ollama`
+- [x] 74/74 tests pass
+- [x] Retry + rate limit hoạt động (4s delay, 3 retries backoff)
+- [x] `.env` không commit, `.env.example` không chứa key thật
+- [x] Manual test: Gemini chat + stream hoạt động với key thật
+
+---
+
+### Task C1: Prompt LLM detect chapter boundaries
+
+**Description:** Tạo prompt gửi text cho LLM, trả JSON list chapters với title + start_marker.
+
+- [x] `CHAPTER_DETECT_PROMPT` — prompt trả JSON `{chapters: [{title, start_marker, estimated_number}]}`
+- [x] Hướng dẫn LLM tìm: Chapter N, Chương N, 第N章, Prologue, Epilogue, 序章, 終章, Interlude, Part N, Section N, 第N節
+- [x] `start_marker` = verbatim ~80 chars đầu chương (dùng để split text)
+- [x] Xử lý text không có chapter structure → trả 1 chapter
+
+**Files:**
+- `backend/src/prompts/chapter_detect.py` (new)
+
+---
+
+### Task C2: Implement detect_chapters_llm() + detect_chapters_with_fallback()
+
+**Description:** LLM-based chapter detection. Fallback: regex first, LLM khi regex không match.
+
+- [x] `detect_chapters_llm(text, client, max_chars=30000)` — gọi LLM, parse JSON, split text bằng start_marker
+- [x] `detect_chapters_with_fallback(text, client, lang_hint)` — regex first, nếu 1 chapter → LLM fallback
+- [x] `_parse_llm_json()` — parse JSON từ LLM (xử lý markdown wrapper)
+- [x] Error handling: invalid JSON → trả single chapter, không crash
+- [x] 7 unit tests pass (`test_chapter_llm_detect.py`)
+
+**Files:**
+- `backend/src/services/chapter_splitter.py`
+- `backend/tests/test_chapter_llm_detect.py` (new)
+
+---
+
+### Task C3: Update detect route — fallback LLM
+
+**Description:** Sửa `api/routes/chapters.py` endpoint `/projects/{id}/chapters/detect` dùng `detect_chapters_with_fallback()`.
+
+- [x] `detect_chapters_route` dùng `detect_chapters_with_fallback(text, client=get_llm_client(), lang_hint)`
+- [x] Regex match → không gọi LLM (tiết kiệm API)
+- [x] Regex không match → LLM fallback
+- [x] Tests pass (`test_chapters_api.py`)
+
+**Files:**
+- `backend/src/api/routes/chapters.py`
+
+---
+
+### Task C4: Test LLM chapter detection
+
+**Description:** Unit tests + manual test với Gemini API thật.
+
+- [x] Unit: parse response, invalid JSON, empty chapters, marker not found, fallback logic
+- [x] Manual: text với "Part One/Interlude/Part Two" → Gemini tách 4 chapters đúng
+- [x] 81/81 tests pass
+
+**Files:**
+- `backend/tests/test_chapter_llm_detect.py`
+
+---
+
+## Checkpoint: LLM Chapter Detection — DONE
+- [x] Regex match → dùng regex (nhanh, không tốn API)
+- [x] Regex không match → LLM detect (chính xác, tốn 1 API call)
+- [x] 81/81 tests pass
+- [x] Manual test: tách "Part One/Interlude/Part Two" từ text không có standard markers
 
 ---
 

@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     cors_origins: str = "http://localhost:5173"
 
+    llm_provider: str = "gemini"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-flash-latest"
+    gemini_quality_model: str = "gemini-pro-latest"
+    gemini_request_delay: float = 4.0
+    gemini_max_retries: int = 3
+
     model_config = {"env_prefix": "KANZARU_", "env_file": ".env"}
 
     @property
