@@ -80,13 +80,28 @@ export default function ChapterDetail() {
           </>
         )}
         {chapter.status === "analyzed" || chapter.status === "translated" ? (
+          <>
+            <button
+              onClick={() => navigate(`/projects/${projectId}/chapters/${chId}/analyze`)}
+              className="px-3 py-1.5 text-sm bg-amber-700 text-white rounded hover:bg-amber-600"
+            >
+              Analysis →
+            </button>
+            <button
+              onClick={() => navigate(`/projects/${projectId}/chapters/${chId}/translate`)}
+              className="px-3 py-1.5 text-sm bg-purple-700 text-white rounded hover:bg-purple-600"
+            >
+              Translate →
+            </button>
+          </>
+        ) : (
           <button
-            onClick={() => navigate(`/projects/${projectId}/chapters/${chId}/translate`)}
-            className="px-3 py-1.5 text-sm bg-purple-700 text-white rounded hover:bg-purple-600"
+            onClick={() => navigate(`/projects/${projectId}/chapters/${chId}/analyze`)}
+            className="px-3 py-1.5 text-sm bg-amber-700 text-white rounded hover:bg-amber-600"
           >
-            Translate →
+            Analyze →
           </button>
-        ) : null}
+        )}
       </div>
 
       {editing ? (
