@@ -5,14 +5,16 @@ from sqlmodel import Session, select
 from sse_starlette.sse import EventSourceResponse
 from src.api.deps import get_session
 from src.config import settings
-from src.models.db import Chapter, Character, GlossaryEntry
-from src.services.translator import TranslationContext, translate_chapter, translate_chapter_stream
+from src.models.db import Chapter, Character, CharacterRelationship, GlossaryEntry, Project
+from src.services.translator import TranslationContext, translate_chapter, translate_chapter_stream, translate_chapter_3step
 from src.services.llm_client import LLMClient
 
 router = APIRouter(tags=["translate"])
 
 
 def _build_context(session: Session, chapter: Chapter) -> TranslationContext:
+    project = session.get(Project, chapter.project_id)
+
     chars = session.exec(
         select(Character).where(Character.project_id == chapter.project_id)
     ).all()
@@ -23,10 +25,25 @@ def _build_context(session: Session, chapter: Chapter) -> TranslationContext:
     ).all()
     glossary_str = "\n".join(f"- {g.term} = {g.translation}" for g in glossary)
 
+    rels = session.exec(
+        select(CharacterRelationship).where(CharacterRelationship.project_id == chapter.project_id)
+    ).all()
+    char_map = {c.id: c.name for c in chars}
+    rel_str = "\n".join(
+        f"- {char_map.get(r.character_a_id, '?')} — {char_map.get(r.character_b_id, '?')} ({r.rel_type})"
+        + (f": {r.description}" if r.description else "")
+        for r in rels
+    )
+
     return TranslationContext(
         summary=chapter.summary or "",
         characters=char_str or "",
         glossary=glossary_str or "",
+        relationships=rel_str or "",
+        genre=project.genre if project else "fiction",
+        source_lang=project.source_lang if project else "auto",
+        sample_original=project.sample_original if project else "",
+        sample_translated=project.sample_translated if project else "",
     )
 
 
@@ -67,6 +84,26 @@ def update_translation(chapter_id: int, body: dict, session: Session = Depends(g
     session.add(chapter)
     session.commit()
     return {"chapter_id": chapter_id, "status": "updated"}
+
+
+@router.post("/chapters/{chapter_id}/translate/quality")
+def translate_chapter_quality_route(chapter_id: int, session: Session = Depends(get_session)):
+    chapter = session.get(Chapter, chapter_id)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="Chapter not found")
+    if not chapter.original_text:
+        raise HTTPException(status_code=400, detail="Chapter has no text to translate")
+
+    ctx = _build_context(session, chapter)
+    client = LLMClient(url=settings.ollama_url, model=settings.ollama_model)
+    translated = translate_chapter_3step(chapter.original_text, ctx, client)
+
+    chapter.translated_text = translated
+    chapter.status = "translated"
+    session.add(chapter)
+    session.commit()
+
+    return {"chapter_id": chapter_id, "chars": len(translated), "method": "3step"}
 
 
 @router.get("/chapters/{chapter_id}/translate/stream")

@@ -59,3 +59,10 @@ def test_init_db_adds_file_path_column_to_existing_chapter_table():
             VALUES (1, 1, 'test', 'text', '', '', '', 'uploads/test.pdf', 'processing')
         """))
         session.commit()
+
+    with Session(eng) as session:
+        pcols = session.exec(text("PRAGMA table_info(project)")).all()
+        pcol_names = [row[1] for row in pcols]
+        assert "genre" in pcol_names
+        assert "sample_original" in pcol_names
+        assert "sample_translated" in pcol_names

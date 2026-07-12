@@ -19,6 +19,14 @@ def _migrate(eng) -> None:
             session.exec(text("ALTER TABLE chapter ADD COLUMN file_path TEXT DEFAULT ''"))
             session.commit()
 
+        pcols = session.exec(text("PRAGMA table_info(project)")).all()
+        pcol_names = {row[1] for row in pcols}
+        if pcol_names:
+            for col in ("genre", "sample_original", "sample_translated"):
+                if col not in pcol_names:
+                    session.exec(text(f"ALTER TABLE project ADD COLUMN {col} TEXT DEFAULT ''"))
+                    session.commit()
+
 
 def get_session() -> Session:
     with Session(engine) as session:

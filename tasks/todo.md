@@ -4,776 +4,482 @@
 
 ### Task 1: Project scaffold + backend setup
 
-**Description:** Init backend project với uv, FastAPI, SQLModel. Cấu trúc thư mục, config, dev server chạy được.
-**Acceptance criteria:**
+**Description:** Init backend project, FastAPI, SQLModel. Cấu trúc thư mục, config, dev server.
 
-- [x] `uv init` + `pyproject.toml` với dependencies: fastapi, uvicorn, sqlmodel, pymupdf, rapidocr-onnxruntime, ollama, httpx, sse-starlette, python-multipart, pillow, vieneu
-- [x] FastAPI app chạy tại `localhost:8000`, health check endpoint `/health` trả `{"status": "ok"}`
+- [x] `pyproject.toml` với dependencies: fastapi, uvicorn, sqlmodel, pymupdf, rapidocr-onnxruntime, ollama, httpx, sse-starlette, python-multipart, pillow, pydantic-settings
+- [x] FastAPI app chạy tại `localhost:8000`, health check `/health`
 - [x] SQLite DB auto-init on startup
-- [x] Config via environment variables (OLLAMA_URL, DB_PATH, AUDIO_DIR, TTS_VOICE, TTS_STYLE, etc.)
-- [x] CORS enabled cho `localhost:5173` (frontend dev)
-  **Verification:**
-- [x] `uv run uvicorn src.main:app --reload` starts without errors
-- [x] `curl localhost:8000/health` returns 200
-  **Dependencies:** None
-  **Files likely touched:**
+- [x] Config via environment variables (KANZARU_ prefix)
+- [x] CORS enabled cho `localhost:5173`
+- [x] Root `package.json` với `concurrently` để chạy song song backend + frontend
 
+**Files:**
 - `backend/pyproject.toml`
 - `backend/src/main.py`
 - `backend/src/config.py`
-- `backend/src/models/db.py`
-  **Estimated scope:** Small (3-4 files)
+- `package.json` (root, concurrently)
 
 ---
 
 ### Task 2: Database models + project management API
 
-**Description:** SQLModel tables cho Project, Chapter, Character, GlossaryEntry, Translation, AudioFile, AudioTimeline. REST API CRUD cho Project.
-**Acceptance criteria:**
+**Description:** SQLModel tables + REST API CRUD cho Project.
 
 - [x] Tables: `Project`, `Chapter`, `Character`, `GlossaryEntry`, `CharacterRelationship`, `AudioFile`, `AudioTimeline`
-- [x] `POST /projects` — create project (name, source_lang, target_lang)
-- [x] `GET /projects` — list all projects
-- [x] `GET /projects/{id}` — get project detail
-- [x] `DELETE /projects/{id}` — delete project + cascade
-- [x] DB migrations auto-run on startup
-  **Verification:**
-- [x] Create project via API, verify in DB
-- [x] Delete cascade works (chapters, characters, audio files deleted with project)
-  **Dependencies:** Task 1
-  **Files likely touched:**
+- [x] `Project` model có: name, source_lang, target_lang, genre, sample_original, sample_translated
+- [x] `Chapter` model có: file_path, status (pending/processing/uploaded/detected/analyzed/translated)
+- [x] `POST /projects`, `GET /projects`, `GET /projects/{id}`, `DELETE /projects/{id}`
+- [x] DB migrations auto-run on startup (`_migrate()` adds missing columns)
 
+**Files:**
 - `backend/src/models/db.py`
 - `backend/src/models/schemas.py`
 - `backend/src/api/routes/projects.py`
 - `backend/src/api/deps.py`
-  **Estimated scope:** Medium (4 files)
 
 ---
 
 ### Task 3: PDF/text extraction service
 
-**Description:** Service extract text từ PDF (text-based + scanned) và raw text input. Auto-detect nếu PDF là scanned → chạy OCR.
-**Acceptance criteria:**
+**Description:** Extract text từ PDF (text-based + scanned) và raw text. OCR auto-detect.
 
-- [x] `extract_from_pdf(file) -> list[PageText]` — PyMuPDF extract
-- [x] Auto-detect: nếu page có <50 chars → mark for OCR
+- [x] `extract_from_pdf(file) -> list[PageText]` — PyMuPDF
+- [x] Auto-detect: <50 chars/page → OCR
 - [x] `extract_with_ocr(file) -> list[PageText]` — RapidOCR
-- [x] `extract_from_text(content) -> list[PageText]` — raw text input
-- [ ] Tesseract fallback nếu RapidOCR fail
-- [x] Return structured: `[{page_num, text, extraction_method}]`
-- [x] `POST /upload` endpoint accepts PDF + text
-  **Verification:**
-- [x] Test với text PDF → extracts correctly
-- [ ] Test với scanned PDF → OCR runs
-- [x] Test với raw text → parses to pages
-  **OCR Verification (Youjo Senki PDF):**
-- [x] 403 pages total, pages 1-6 + 25 blank/cover → marked `needs_ocr`
-- [x] Pages 7-24 text-based → extracted via PyMuPDF
-- [x] Extracted text = EXACT MATCH with `example_1.txt` (ignoring whitespace)
-  **Dependencies:** Task 1, Task 2
-  **Files likely touched:**
+- [x] `extract_from_text(content) -> list[PageText]`
+- [x] `extract_pdf_streaming(file_path) -> AsyncIterator[ExtractProgress]` — async, per-page yield, OCR via `asyncio.to_thread`
+- [x] `POST /projects/{id}/upload` — file saved to disk, chapter status=processing
+- [x] `GET /chapters/{id}/extract/stream` — SSE streams extraction progress
 
+**Files:**
 - `backend/src/services/extractor.py`
 - `backend/src/api/routes/upload.py`
 - `backend/tests/test_extractor.py`
-  **Estimated scope:** Medium (3 files)
+- `backend/tests/test_upload.py`
 
 ---
 
 ### Task 4: Chapter detection service
 
-**Description:** Detect chapter boundaries từ extracted text. Regex patterns cho đa ngôn ngữ + LLM-assisted fallback.
-**Acceptance criteria:**
+**Description:** Detect chapter boundaries từ extracted text. Regex patterns đa ngôn ngữ.
 
-- [x] Regex patterns: `Chương \d+`, `第.+章`, `Chapter \d+`, `第.+話`, `第.+回`
-- [x] `detect_chapters(text, lang_hint) -> list[Chapter]` returns chapters with title + content
-- [ ] Fallback: nếu regex không match → LLM-assisted split (ask Ollama to find chapter boundaries)
+- [x] Regex: `Chương \d+`, `第.+章`, `Chapter \d+`, `第.+話`, `第.+回`
+- [x] `detect_chapters(text, lang_hint) -> list[Chapter]`
 - [x] `POST /projects/{id}/chapters/detect` — auto-detect + store
-- [x] `GET /projects/{id}/chapters` — list chapters
-- [x] `PUT /chapters/{id}` — edit chapter title/content
-- [x] `POST /projects/{id}/chapters` — manual add chapter
-- [x] `DELETE /chapters/{id}` — delete chapter
-  **Verification:**
-- [x] Test với Vietnamese novel → detects "Chương 1", "Chương 2"
-- [x] Test với Japanese novel → detects "第1章"
-- [x] Test với English → detects "Chapter 1"
-- [ ] Fallback works when no patterns found
-  **Dependencies:** Task 2, Task 3
-  **Files likely touched:**
+- [x] `GET /projects/{id}/chapters` — list
+- [x] `PUT /chapters/{id}` — edit
+- [x] `POST /projects/{id}/chapters` — manual add
+- [x] `DELETE /chapters/{id}` — delete
+- [ ] LLM-assisted fallback khi không match pattern
 
+**Files:**
 - `backend/src/services/chapter_splitter.py`
 - `backend/src/api/routes/chapters.py`
 - `backend/tests/test_chapter_splitter.py`
-  **Estimated scope:** Medium (3 files)
 
 ---
 
-## Checkpoint: Foundation
-
-- [x] Backend runs without errors
-- [x] DB initialized with all tables
-- [x] Upload PDF → extract text → detect chapters → view in API
-- [x] All tests pass: `uv run pytest`
+## Checkpoint: Foundation — DONE
 
 ---
 
 ### Task 5: Ollama client wrapper
 
-**Description:** Wrapper cho Ollama Python client. Health check, model listing, chat + streaming.
-**Acceptance criteria:**
+**Description:** Wrapper cho Ollama Python client.
 
-- [x] `LLMClient` class with: `health_check()`, `list_models()`, `chat(model, messages)`, `stream(model, messages)`
-- [x] Config: Ollama URL from env (default `http://localhost:11434`)
-- [x] Default model configurable (Qwen2.5 7B preferred for đa ngôn ngữ)
-- [x] `GET /llm/health` — check Ollama running + model available
-- [x] `GET /llm/models` — list available models
-- [x] Error handling: clear message if Ollama not running
-  **Verification:**
-- [x] Health check returns model status
-- [x] Can send simple prompt and get response
-- [x] Streaming works (yield chunks)
-  **Dependencies:** Task 1
-  **Files likely touched:**
+- [x] `LLMClient` class: `health_check()`, `list_models()`, `chat()`, `stream()`
+- [x] Config: Ollama URL from env
+- [x] Default model: Qwen2.5 7B
+- [x] `GET /llm/health`, `GET /llm/models`
 
+**Files:**
 - `backend/src/services/llm_client.py`
 - `backend/src/api/routes/llm.py`
-  **Estimated scope:** Small (2 files)
 
 ---
 
 ### Task 6: Story analyzer service
 
-**Description:** LLM-powered analysis: tóm tắt chương + extract nhân vật + xưng hô. Input: chapter text. Output: summary + character list.
-**Acceptance criteria:**
+**Description:** LLM-powered analysis: tóm tắt + extract nhân vật + xưng hô.
 
-- [x] `analyze_chapter(text, lang) -> AnalysisResult` returns:
-  - `summary`: tóm tắt nội dung (2-3 câu)
-  - `characters`: `[{name, aliases, role, honorifics_used}]`
-  - `key_terms`: thuật ngữ quan trọng cần注意
-- [x] Prompt template asks LLM to output structured JSON
-- [x] Parse LLM response → validate → store in DB
+- [x] `analyze_chapter(text, lang) -> AnalysisResult` (summary, characters, key_terms)
+- [x] Structured JSON prompt
 - [x] `POST /chapters/{id}/analyze` — trigger analysis
 - [x] `GET /chapters/{id}/analysis` — get stored analysis
-  **Verification:**
-- [x] Test với sample chapter → returns meaningful summary
-- [x] Character names extracted correctly
-- [x] Honorifics detected (san, sama, kun, etc.)
-  **Dependencies:** Task 4, Task 5
-  **Files likely touched:**
 
+**Files:**
 - `backend/src/services/analyzer.py`
 - `backend/src/prompts/analyze.py`
-- `backend/src/api/routes/chapters.py` (extend)
+- `backend/src/api/routes/chapters.py`
 - `backend/tests/test_analyzer.py`
-  **Estimated scope:** Medium (4 files)
 
 ---
 
 ### Task 7: Relationship mapper
 
-**Description:** Build character relationship graph từ analysis data. Identify quan hệ (family, friend, rival, master-servant, etc.).
-**Acceptance criteria:**
+**Description:** Build character relationship graph.
 
-- [x] `map_relationships(characters, chapter_text) -> list[Relationship]`
+- [x] `map_relationships(characters, text) -> list[Relationship]`
 - [x] Relationship types: family, romantic, friendship, rivalry, master_servant, other
-- [x] `GET /projects/{id}/characters` — all characters across chapters
-- [x] `GET /projects/{id}/relationships` — all relationships
-- [x] LLM prompt extracts relationships from text
-- [x] Merge duplicates across chapters (same character different chapter)
-  **Verification:**
-- [x] Test với multi-chapter text → relationships consistent
-- [x] Graph data valid for frontend (nodes + edges)
-  **Dependencies:** Task 6
-  **Files likely touched:**
+- [x] `GET /projects/{id}/characters`, `GET /projects/{id}/relationships`
+- [x] Merge duplicates across chapters
+- [x] Relationships included in translation context (`_build_context()`)
 
-- `backend/src/services/analyzer.py` (extend)
-- `backend/src/prompts/analyze.py` (extend)
+**Files:**
+- `backend/src/services/analyzer.py`
+- `backend/src/prompts/analyze.py`
 - `backend/src/api/routes/characters.py`
-  **Estimated scope:** Medium (3 files)
 
 ---
 
 ### Task 8: Translation service (context-aware, streaming, emotion cues)
 
-**Description:** Core translation. Context-aware: uses summary + characters + glossary. Streaming via SSE. Auto-inject emotion cues cho TTS.
-**Acceptance criteria:**
+**Description:** Core translation. Context-aware, SSE streaming, emotion cues.
 
-- [x] `translate_chapter(chapter_id, context) -> AsyncGenerator[str]` streams translated text
-- [x] Prompt includes: chapter text + summary + character list + glossary + honorific rules
-- [x] Chunk long chapters (>2000 tokens) → translate per chunk → stitch
-- [x] Context carry: running glossary from previous chapters
-- [x] Translation prompt instructs LLM to auto-inject emotion cues: `[cười]`, `[thở dài]`, `[hắng giọng]` where contextually appropriate
-- [x] Cues match VieNeu-TTS format exactly
-- [x] `POST /chapters/{id}/translate` — returns SSE stream
-- [x] `GET /chapters/{id}/translation` — get stored translation
-- [x] Translation stored in DB linked to chapter
-- [x] `PUT /chapters/{id}/translation` — user edit translated text (add/remove cues)
-  **Verification:**
-- [x] SSE stream delivers translation progressively
-- [x] Character names consistent across chapters
-- [x] Honorifics handled per glossary rules
-- [x] Long chapters handled without context overflow
-- [x] Emotion cues present in translated text where appropriate
-  **Dependencies:** Task 6, Task 7
-  **Files likely touched:**
+- [x] `translate_chapter(text, ctx) -> str`
+- [x] `translate_chapter_stream(text, ctx) -> AsyncGenerator[str]` — SSE streaming
+- [x] Chunk long chapters (>8000 chars) → translate per chunk → stitch
+- [x] Emotion cues auto-injected: `[cười]`, `[thở dài]`, etc.
+- [x] `POST /chapters/{id}/translate` — non-streaming
+- [x] `GET /chapters/{id}/translate/stream` — SSE streaming
+- [x] `GET /chapters/{id}/translation` — get stored
+- [x] `PUT /chapters/{id}/translation` — user edit
 
+**Files:**
 - `backend/src/services/translator.py`
 - `backend/src/prompts/translate.py`
 - `backend/src/api/routes/translate.py`
 - `backend/tests/test_translator.py`
-  **Estimated scope:** Medium (4 files)
 
 ---
 
-## Checkpoint: LLM Pipeline
-
-- [x] Full backend pipeline: upload → extract → detect chapters → analyze → translate → JSON
-- [x] All API endpoints working
-- [x] SSE streaming functional
-- [x] Emotion cues in translated text
-- [x] Tests pass
+## Checkpoint: LLM Pipeline — DONE
 
 ---
 
 ### Task 9: Frontend scaffold
 
-**Description:** Init React + Vite + TypeScript + Tailwind. Basic layout, routing, API client.
-**Acceptance criteria:**
+- [x] Vite + React + TS + Tailwind
+- [x] API client (fetch wrapper)
+- [x] Layout: sidebar + main content
+- [x] React Router, TanStack Query
+- [x] `npm run dev` at `localhost:5173`
 
-- [x] Vite + React + TS project created
-- [x] Tailwind CSS configured
-- [x] API client (`fetch` wrapper) with base URL config
-- [x] Basic layout: sidebar + main content area
-- [x] React Router setup (projects, upload, translate views)
-- [x] TanStack Query provider configured
-  **Verification:**
-- [x] `npm run dev` starts at `localhost:5173`
-- [x] Can call backend `/health` from frontend
-  **Dependencies:** None (parallel with Phase 1-2 possible)
-  **Files likely touched:**
-
-- `frontend/package.json`
-- `frontend/vite.config.ts`
-- `frontend/src/App.tsx`
-- `frontend/src/main.tsx`
-- `frontend/src/api/client.ts`
-- `frontend/src/components/Layout.tsx`
-  **Estimated scope:** Medium (5-6 files)
+**Files:**
+- `frontend/package.json`, `frontend/vite.config.ts`
+- `frontend/src/App.tsx`, `frontend/src/main.tsx`
+- `frontend/src/api/client.ts`, `frontend/src/components/Layout.tsx`
 
 ---
 
 ### Task 10: Upload panel + project list UI
 
-**Description:** UI for creating projects, uploading PDF/text, viewing project list.
-**Acceptance criteria:**
-
-- [x] Project list page: cards with name, lang pair, chapter count, status
-- [x] New project modal: name, source lang, target lang
+- [x] Project list: cards with name, lang pair, status
+- [x] New project creation
 - [x] Upload panel: drag-drop PDF or paste text
-- [x] Upload progress indicator
-- [x] Navigate to project detail after upload
-  **Verification:**
-- [x] Create project → appears in list
-- [x] Upload PDF → triggers extraction + chapter detection
-- [ ] Chapters visible in project detail (Task 11)
-  **Dependencies:** Task 9
-  **Files likely touched:**
+- [x] Upload success feedback (toast + inline message)
+- [x] Navigate to chapter detail after file upload (for extraction progress)
 
+**Files:**
 - `frontend/src/components/UploadPanel.tsx`
 - `frontend/src/components/ProjectList.tsx`
-- `frontend/src/hooks/useUpload.ts`
-- `frontend/src/hooks/useProject.ts`
+- `frontend/src/hooks/useUpload.ts`, `useProject.ts`
 - `frontend/src/types/index.ts`
-  **Estimated scope:** Medium (5 files)
 
 ---
 
 ### Task 11: Chapter manager UI
 
-**Description:** View, edit, reorder chapters. Show original text per chapter.
-**Acceptance criteria:**
+- [x] Chapter list: numbers + titles + status badges + char count
+- [x] Chapter detail: original text view, edit title/text
+- [x] Detect chapters button (with toast feedback)
+- [x] Delete chapter (with toast feedback)
+- [x] Workflow guidance banner ("Next: Analyze..." / "Next: Translate...")
+- [x] SSE extraction progress bar (auto-connect when status=processing)
+- [x] Stop extraction button
 
-- [x] Chapter list: sidebar with chapter numbers + titles
-- [x] Chapter detail: original text view (scrollable)
-- [x] Edit chapter title
-- [ ] Split/merge chapters manually
-- [x] Status badges: pending, analyzing, analyzed, translating, translated, tts_pending, tts_done
-  **Verification:**
-- [x] Chapters load from API
-- [x] Edit saves to backend
-- [x] Status updates reflect in UI
-  **Dependencies:** Task 10
-  **Files likely touched:**
-
+**Files:**
 - `frontend/src/components/ChapterList.tsx`
 - `frontend/src/components/ChapterDetail.tsx`
-- `frontend/src/hooks/useChapters.ts`
-  **Estimated scope:** Medium (3 files)
+- `frontend/src/hooks/useChapters.ts`, `useExtractStream.ts`
 
 ---
 
 ### Task 12: Analysis view (summary + character graph)
 
-**Description:** Display story summary + character relationship graph using reactflow.
-**Acceptance criteria:**
+- [x] Summary panel
+- [x] Character graph: nodes + edges (reactflow)
+- [x] Click character → side panel with details
+- [x] Analyze button (with toast feedback)
+- [x] Map relationships button (with toast feedback)
 
-- [x] Summary panel: shows chapter summary
-- [x] Character graph: nodes = characters, edges = relationships (labeled)
-- [x] Click character → side panel with details (name, role, honorifics, appearances)
-- [x] Graph auto-layout (force-directed or hierarchical)
-- [x] Color-coded relationship types
-  **Verification:**
-- [x] Graph renders from API data
-- [x] Interactive: click, hover, zoom, pan
-- [x] Character details accurate
-  **Dependencies:** Task 11
-  **Files likely touched:**
-
+**Files:**
 - `frontend/src/components/AnalysisView.tsx`
 - `frontend/src/components/CharacterGraph.tsx`
 - `frontend/src/hooks/useAnalysis.ts`
-  **Estimated scope:** Medium (3 files)
 
 ---
 
 ### Task 13: Translation view (SSE streaming, emotion cue edit)
 
-**Description:** View displaying streaming translation. Side-by-side or tab toggle original/translated. Edit emotion cues trước khi TTS.
-**Acceptance criteria:**
+- [x] Translate button → SSE stream
+- [x] Progressive display (word by word)
+- [x] Toggle: original / translated / side-by-side
+- [x] Re-translate (with confirmation)
+- [x] Edit mode: textarea with emotion cue highlighting
+- [x] Save edited translation
+- [x] Stream completion toast
 
-- [x] "Translate" button triggers SSE stream
-- [x] Translation appears progressively (word by word)
-- [ ] Progress bar (chapter chunk X/Y)
-- [x] Toggle: original only / translated only / side-by-side
-- [x] Translation stored — reload shows cached translation
-- [x] Re-translate button (with confirmation)
-- [x] Edit mode: textarea to add/remove emotion cues `[cười]`, `[thở dài]`, `[hắng giọng]`
-- [x] Emotion cues highlighted in edit mode (distinct color)
-- [x] Save edited translation to backend
-  **Verification:**
-- [x] SSE stream works in browser
-- [x] Translation appears in real-time
-- [x] Page reload shows stored translation
-- [x] Emotion cues visible + editable
-- [x] Save persists changes
-  **Dependencies:** Task 12
-  **Files likely touched:**
-
+**Files:**
 - `frontend/src/components/TranslationView.tsx`
 - `frontend/src/hooks/useTranslation.ts`
-  **Estimated scope:** Medium (2-3 files)
 
 ---
 
-## Checkpoint: Web UI
-
-- [x] Full browser flow: upload → detect chapters → analyze → translate → view
-- [x] SSE streaming works end-to-end
-- [x] Character graph interactive
-- [x] Emotion cues visible + editable
-- [x] No console errors
+## Checkpoint: Web UI — DONE
 
 ---
 
-### Task 14: Glossary manager service + API
+### Task 14: DB migration system
 
-**Description:** CRUD for glossary entries (term, translation, notes, context). Per-project storage.
-**Acceptance criteria:**
+**Description:** Auto-migrate SQLite schema on startup. Add missing columns to existing tables.
 
-- [ ] `GlossaryEntry` model: term, translation, source_lang, notes, project_id
-- [ ] `POST /projects/{id}/glossary` — add entry
-- [ ] `GET /projects/{id}/glossary` — list entries
-- [ ] `PUT /glossary/{id}` — update
-- [ ] `DELETE /glossary/{id}` — delete
-- [ ] `POST /projects/{id}/glossary/import` — bulk import (JSON/CSV)
-- [ ] Glossary passed to translator as context
-  **Verification:**
-- [ ] CRUD operations work
-- [ ] Glossary terms used in translation prompts
-  **Dependencies:** Task 8
-  **Files likely touched:**
+- [x] `_migrate()` in `deps.py`: checks `PRAGMA table_info()` + `ALTER TABLE ADD COLUMN`
+- [x] Migrates: `chapter.file_path`, `project.genre`, `project.sample_original`, `project.sample_translated`
+- [x] Test: `test_migration.py` — creates old schema, runs `init_db()`, asserts new columns exist
 
-- `backend/src/models/db.py` (extend)
-- `backend/src/models/schemas.py` (extend)
-- `backend/src/api/routes/glossary.py`
-  **Estimated scope:** Medium (3 files)
+**Files:**
+- `backend/src/api/deps.py`
+- `backend/tests/test_migration.py`
 
 ---
 
-### Task 15: DuckDuckGo web search service
+### Task 15: Toast notification system
 
-**Description:** Search DuckDuckGo for character/series info. Parse HTML results. Cache results.
-**Acceptance criteria:**
+**Description:** Global toast provider for success/error feedback across all components.
 
-- [ ] `search_ddg(query, max_results=5) -> list[SearchResult]`
-- [ ] Returns: title, url, snippet
-- [ ] Cache results in SQLite (avoid repeat queries)
-- [ ] Rate limiting: max 1 request/second
-- [ ] Graceful failure: return empty list on error
-- [ ] `POST /characters/{id}/research` — trigger search
-- [ ] `GET /characters/{id}/research` — get cached results
-  **Verification:**
-- [ ] Search returns relevant results
-- [ ] Cache works (second query is instant)
-- [ ] No crash on network error
-  **Dependencies:** Task 7
-  **Files likely touched:**
+- [x] `ToastContext.tsx` — context + provider, auto-dismiss (4s), fixed bottom-right
+- [x] Toast types: success (green), error (red), info (slate)
+- [x] Wired into: UploadPanel, ChapterList, ChapterDetail, AnalysisView, TranslationView
+- [x] `App.tsx` wrapped with `<ToastProvider>`
 
-- `backend/src/services/researcher.py`
-- `backend/src/api/routes/characters.py` (extend)
-  **Estimated scope:** Medium (2-3 files)
+**Files:**
+- `frontend/src/contexts/ToastContext.tsx`
+- `frontend/src/App.tsx`
+- All component files (toast usage)
 
 ---
 
-### Task 16: Research enrichment integration
+### Task 16: Async upload + SSE extraction
 
-**Description:** Combine glossary + web search + LLM knowledge → enriched character context for translator.
-**Acceptance criteria:**
+**Description:** Upload saves file to disk, returns immediately. Extraction streams via SSE.
+
+- [x] Upload endpoint: `shutil.copyfileobj` to `uploads/{project_id}/`, chapter status=processing
+- [x] SSE endpoint `GET /chapters/{id}/extract/stream`: streams per-page progress
+- [x] `extract_pdf_streaming()` async generator: yields `ExtractProgress` per page
+- [x] OCR runs via `asyncio.to_thread` (non-blocking)
+- [x] Frontend: `useExtractStream` hook (SSE client)
+- [x] ChapterDetail auto-connects SSE when status=processing
+- [x] Progress bar with page count, method, char count
+
+**Files:**
+- `backend/src/api/routes/upload.py`
+- `backend/src/services/extractor.py`
+- `frontend/src/hooks/useExtractStream.ts`
+- `frontend/src/components/ChapterDetail.tsx`
+- `frontend/src/components/UploadPanel.tsx`
+
+---
+
+### Task 17: Relationships in translation context
+
+**Description:** Wire character relationships into translation prompt for dialogue tone accuracy.
+
+- [x] `TranslationContext.relationships` field
+- [x] `_build_context()` queries `CharacterRelationship` table
+- [x] Relationships formatted as `A — B (type): description`
+- [x] Translation prompt includes relationship section + tone instruction
+
+**Files:**
+- `backend/src/services/translator.py`
+- `backend/src/prompts/translate.py`
+- `backend/src/api/routes/translate.py`
+
+---
+
+## Checkpoint: Infrastructure — DONE
+
+---
+
+### Task 18: Professional translation prompt (persona, genre, constraints, few-shot)
+
+**Description:** Rewrite prompt with 5 professional translation techniques.
+
+- [x] **Persona:** "Bạn là dịch giả văn học chính thống, 20 năm kinh nghiệm..."
+- [x] **Context:** Genre from project, sample_original/translated for few-shot
+- [x] **Constraints:** Thành ngữ→tương đương, giữ tên riêng, KHÔNG tóm tắt câu dài, honorifics, quan hệ→ngôn xưng
+- [x] **Few-shot:** Project `sample_original` + `sample_translated` → "Hãy dịch theo phong cách tương tự"
+- [x] Prompt rewritten entirely in Vietnamese
+- [x] Tests: persona, genre, constraints, sample in prompt
+
+**Files:**
+- `backend/src/prompts/translate.py`
+- `backend/src/services/translator.py`
+- `backend/tests/test_translator.py`
+
+---
+
+### Task 19: 3-step translation mode (rough → critique → final)
+
+**Description:** Multi-turn LLM conversation: rough translation → self-critique → final polished translation.
+
+- [x] `ROUGH_PROMPT`, `CRITIQUE_PROMPT`, `FINAL_PROMPT` templates
+- [x] `build_3step_prompts(text, ctx) -> list[str]` — returns 3 prompts
+- [x] `translate_chapter_3step(text, ctx, client) -> str` — 3 LLM calls per chunk, multi-turn
+- [x] `POST /chapters/{id}/translate/quality` endpoint
+- [x] Tests: `build_3step_prompts` returns 3, `translate_chapter_3step` returns final only, 3 chat calls
+
+**Files:**
+- `backend/src/prompts/translate.py`
+- `backend/src/services/translator.py`
+- `backend/src/api/routes/translate.py`
+- `backend/tests/test_translator.py`
+
+---
+
+### Task 20: Project fields for genre + sample translation
+
+**Description:** Add genre + sample_original + sample_translated to Project model.
+
+- [x] `Project` model: `genre`, `sample_original`, `sample_translated` fields
+- [x] `ProjectCreate`, `ProjectRead`, `ProjectUpdate` schemas updated
+- [x] Migration adds columns to existing DB
+- [x] `_build_context()` passes genre + sample to `TranslationContext`
+- [x] Tests: migration adds columns, prompt includes genre + sample
+
+**Files:**
+- `backend/src/models/db.py`
+- `backend/src/models/schemas.py`
+- `backend/src/api/deps.py`
+- `backend/src/api/routes/translate.py`
+- `backend/tests/test_migration.py`
+
+---
+
+## Checkpoint: Translation Quality — DONE
+
+---
+
+### Task 21: Glossary manager service + API
+
+- [ ] CRUD for `GlossaryEntry` (term, translation, notes)
+- [ ] `POST /projects/{id}/glossary`, `GET`, `PUT`, `DELETE`
+- [ ] Bulk import (JSON/CSV)
+- [ ] Glossary passed to translator (already wired in `_build_context()`)
+
+### Task 22: DuckDuckGo web search service
+
+- [ ] `search_ddg(query) -> list[SearchResult]`
+- [ ] Cache results in SQLite
+- [ ] Rate limiting: 1 req/sec
+- [ ] `POST /characters/{id}/research`, `GET /characters/{id}/research`
+
+### Task 23: Research enrichment integration
 
 - [ ] `enrich_context(chapter_id) -> EnrichedContext`
-- [ ] Merges: user glossary + web search results + LLM knowledge
-- [ ] LLM synthesizes research into concise context notes
-- [ ] Enriched context passed to translator prompt
-- [ ] `POST /chapters/{id}/enrich` — trigger enrichment
-  **Verification:**
-- [ ] Enriched context improves translation quality (manual check)
-- [ ] Web search results relevant to characters
-  **Dependencies:** Task 14, Task 15
-  **Files likely touched:**
+- [ ] Merge: glossary + web search + LLM knowledge
+- [ ] `POST /chapters/{id}/enrich`
 
-- `backend/src/services/researcher.py` (extend)
-- `backend/src/prompts/research.py`
-- `backend/src/services/translator.py` (extend)
-  **Estimated scope:** Medium (3 files)
+### Task 24: Glossary editor UI
 
----
+- [ ] Glossary table: term, translation, notes
+- [ ] Add/edit/delete, import modal
+- [ ] Search/filter
 
-### Task 17: Glossary editor UI
+### Task 25: Context carry across chapters
 
-**Description:** Frontend for managing glossary entries. Add, edit, delete, import.
-**Acceptance criteria:**
-
-- [ ] Glossary table: term, translation, notes, source
-- [ ] Add entry form
-- [ ] Inline edit
-- [ ] Delete with confirmation
-- [ ] Import modal: paste JSON/CSV
-- [ ] Search/filter entries
-  **Verification:**
-- [ ] CRUD operations sync with backend
-- [ ] Import parses correctly
-  **Dependencies:** Task 14, Task 13
-  **Files likely touched:**
-
-- `frontend/src/components/GlossaryEditor.tsx`
-- `frontend/src/hooks/useGlossary.ts`
-  **Estimated scope:** Medium (2 files)
-
----
-
-### Task 18: Context carry across chapters
-
-**Description:** Running glossary that accumulates character info across chapters. Translator uses prior chapter context.
-**Acceptance criteria:**
-
-- [ ] After analyzing chapter N, character data merged into project-level context
-- [ ] Translating chapter N+1 includes context from chapters 1..N
-- [ ] `GET /projects/{id}/context` — view accumulated context
-- [ ] Context window managed (summarize if too long)
-  **Verification:**
-- [ ] Character names consistent across all chapters
-- [ ] Later chapters reference earlier context correctly
-  **Dependencies:** Task 16
-  **Files likely touched:**
-
-- `backend/src/services/translator.py` (extend)
-- `backend/src/services/analyzer.py` (extend)
-- `backend/src/api/routes/projects.py` (extend)
-  **Estimated scope:** Medium (3 files)
+- [ ] Running glossary accumulates across chapters
+- [ ] Translating chapter N+1 includes context from 1..N
+- [ ] `GET /projects/{id}/context`
 
 ---
 
 ## Checkpoint: Full Pipeline
-
 - [ ] Glossary + research enhances translation
 - [ ] Multi-chapter context preserved
-- [ ] Character consistency across entire book
 
 ---
 
-### Task 19: Export structured JSON output
+### Task 26: Export structured JSON output
 
-**Description:** Export full project as structured JSON (metadata + summary + characters + chapters + translations + audio info).
-**Acceptance criteria:**
-
-- [ ] `GET /projects/{id}/export` — returns JSON
-- [ ] JSON structure matches spec (metadata, summary, characters, chapters, audio)
-- [ ] `POST /projects/{id}/export` — save to file
+- [ ] `GET /projects/{id}/export` — JSON
 - [ ] Frontend download button
-  **Verification:**
-- [ ] JSON valid + parseable
-- [ ] All data included
-  **Dependencies:** Task 18
-  **Files likely touched:**
 
-- `backend/src/api/routes/projects.py` (extend)
-- `frontend/src/components/` (export button)
-  **Estimated scope:** Small (2 files)
+### Task 27: Error handling + retry logic
 
----
+- [ ] OCR failure → fallback → notification
+- [ ] LLM timeout → retry (max 3) → notification
+- [ ] All errors logged
 
-### Task 20: Error handling + retry logic
+### Task 28: Settings UI
 
-**Description:** Robust error handling for OCR failures, LLM timeouts, TTS failures, network errors.
-**Acceptance criteria:**
+- [ ] Model dropdown, OCR engine toggle
+- [ ] TTS voice/style selector
+- [ ] Ollama URL field
 
-- [ ] OCR failure → fallback to other engine → user notification
-- [ ] LLM timeout → retry (max 3) → user notification
-- [ ] TTS failure → retry → user notification
-- [ ] Web search failure → graceful degradation
-- [ ] All errors logged with context
-- [ ] User-facing error messages (Vietnamese)
-  **Verification:**
-- [ ] Simulate failures → handled gracefully
-- [ ] No unhandled exceptions crash the app
-  **Dependencies:** All prior
-  **Files likely touched:**
+### Task 29: README + setup instructions
 
-- `backend/src/services/extractor.py` (extend)
-- `backend/src/services/llm_client.py` (extend)
-- `backend/src/services/translator.py` (extend)
-- `backend/src/services/tts_service.py` (extend)
-- `backend/src/main.py` (error handlers)
-  **Estimated scope:** Medium (5 files)
-
----
-
-### Task 21: Settings UI
-
-**Description:** Frontend settings page: model selection, OCR engine toggle, TTS voice/style, Ollama URL config.
-**Acceptance criteria:**
-
-- [ ] Model dropdown (fetched from `/llm/models`)
-- [ ] OCR engine toggle (RapidOCR / Tesseract / both)
-- [ ] TTS voice dropdown (fetched from `/tts/voices`)
-- [ ] TTS style selector (tu_nhien / tin_tuc / doc_truyen)
-- [ ] Ollama URL field (with test button)
-- [ ] Settings persisted (localStorage or backend)
-  **Verification:**
-- [ ] Settings saved + applied
-- [ ] Model switch works
-- [ ] Voice/style switch works
-  **Dependencies:** Task 13
-  **Files likely touched:**
-
-- `frontend/src/components/Settings.tsx`
-- `backend/src/api/routes/settings.py`
-  **Estimated scope:** Small (2 files)
-
----
-
-### Task 22: README + setup instructions
-
-**Description:** Comprehensive setup guide. Prerequisites, install, run, usage.
-**Acceptance criteria:**
-
-- [ ] Prerequisites: Python 3.12+, Node 20+, Ollama, Tesseract (optional), ffmpeg (for MP3)
-- [ ] Backend setup: `uv sync`, `uv run uvicorn...`
-- [ ] Frontend setup: `npm install`, `npm run dev`
-- [ ] Ollama setup: install + pull model (Qwen2.5 7B)
-- [ ] VieNeu-TTS: `vieneu` SDK auto-install via `uv sync`
-- [ ] ffmpeg setup: install instructions
-- [ ] Usage guide: upload → analyze → translate → TTS → playback
-- [ ] Troubleshooting section
-  **Verification:**
-- [ ] Fresh clone → follow README → app runs
-  **Dependencies:** All prior
-  **Files likely touched:**
-
-- `README.md`
-  **Estimated scope:** Small (1 file)
+- [ ] Prerequisites, install, run, usage guide
+- [ ] Troubleshooting
 
 ---
 
 ## Checkpoint: Polish
-
 - [ ] Error handling robust
-- [ ] Settings configurable (LLM + TTS)
+- [ ] Settings configurable
 - [ ] Setup documented
 
 ---
 
-## Phase 6: TTS Integration — Audio Generation & Playback
+### Task 30: VieNeu-TTS service wrapper
 
-### Task 23: VieNeu-TTS service wrapper
+- [ ] `vieneu` SDK, `TTSClient` class
+- [ ] `GET /tts/health`, `GET /tts/voices`
 
-**Description:** Install `vieneu` SDK, create TTS service. Init `Vieneu()`, list voices, `infer()`, `infer_stream()`.
-**Acceptance criteria:**
+### Task 31: TTS generation service
 
-- [ ] `vieneu` in `pyproject.toml` dependencies
-- [ ] `TTSClient` class: `init()`, `list_voices()`, `infer(text, voice, style)`, `infer_stream(text, voice, style)`
-- [ ] Default: `style="doc_truyen"`, `precision="int8"` (CPU fastest)
-- [ ] `GET /tts/health` — check TTS model loaded
-- [ ] `GET /tts/voices` — list 14 preset voices (Bắc/Trung/Nam)
-- [ ] Config: voice + style from env or settings
-  **Verification:**
-- [ ] `Vieneu()` initializes without error
-- [ ] `infer("Xin chào", voice="Phạm Tuyên", style="doc_truyen")` returns audio
-- [ ] `infer_stream()` yields chunks
-  **Dependencies:** Task 1
-  **Files likely touched:**
+- [ ] `generate_chapter_audio(chapter_id, voice, style)`
+- [ ] Split by sentence → generate per segment → timeline
+- [ ] Save WAV + MP3, store AudioFile + AudioTimeline
+- [ ] `POST /chapters/{id}/tts`, SSE progress
 
-- `backend/src/services/tts_client.py`
-- `backend/src/api/routes/tts.py`
-  **Estimated scope:** Small (2 files)
+### Task 32: Audio storage + serving
 
----
+- [ ] `backend/audio/{project_id}/{chapter_id}/`
+- [ ] Seekable streaming, download
+- [ ] Cascade delete with project
 
-### Task 24: Emotion cue injection in translation
+### Task 33: Audio player UI
 
-**Description:** Update translation prompt to auto-inject `[cười]`, `[thở dài]`, `[hắng giọng]` cues. User can edit translated text before TTS.
-**Acceptance criteria:**
+- [ ] Play/pause/seek/speed/skip ±15s
+- [ ] Voice selector, auto-next chapter
 
-- [ ] Translation prompt updated: instruct LLM to insert emotion cues where contextually appropriate
-- [ ] Cues match VieNeu-TTS format: `[cười]`, `[thở dài]`, `[hắng giọng]`
-- [ ] Cues inserted inline, not at segment boundaries
-- [ ] Frontend: edit translated text before triggering TTS (textarea with cue preview)
-- [ ] Cues stripped from display text, kept for TTS input
-  **Verification:**
-- [ ] Translated text contains appropriate cues
-- [ ] User can add/remove cues manually
-- [ ] TTS processes cues correctly (hear emotion)
-  **Dependencies:** Task 8
-  **Files likely touched:**
+### Task 34: Text sync (karaoke)
 
-- `backend/src/prompts/translate.py` (extend)
-- `frontend/src/components/TranslationView.tsx` (extend)
-  **Estimated scope:** Small (2 files)
-
----
-
-### Task 25: TTS generation service (per chapter)
-
-**Description:** Generate audio per chapter. Split text → segments → generate per segment → track timestamps → save WAV + MP3.
-**Acceptance criteria:**
-
-- [ ] `generate_chapter_audio(chapter_id, voice, style) -> AudioResult`
-- [ ] Split translated text into segments (by sentence — `.`, `!`, `?`, `。`, `！`, `？`)
-- [ ] Generate audio per segment via `tts.infer_stream()`
-- [ ] Concatenate segments → full chapter audio
-- [ ] Track timeline: `{segment_index, text, start_time, end_time}` per segment
-- [ ] Save WAV (lossless) + encode MP3 via ffmpeg subprocess
-- [ ] Store `AudioFile` + `AudioTimeline` records in DB
-- [ ] `POST /chapters/{id}/tts` — trigger generation (background job)
-- [ ] `GET /chapters/{id}/audio` — get audio metadata + timeline
-- [ ] `GET /chapters/{id}/audio/stream` — stream MP3
-- [ ] Progress: SSE events during generation (segment X/Y)
-  **Verification:**
-- [ ] Audio generated per chapter, playable
-- [ ] Timeline accurate (segment boundaries match audio)
-- [ ] Both WAV + MP3 files created
-- [ ] Background job status tracked
-  **Dependencies:** Task 23, Task 24
-  **Files likely touched:**
-
-- `backend/src/services/tts_service.py`
-- `backend/src/models/db.py` (extend)
-- `backend/src/api/routes/tts.py` (extend)
-- `backend/tests/test_tts_service.py`
-  **Estimated scope:** Medium (4 files)
-
----
-
-### Task 26: Audio storage + serving
-
-**Description:** Store audio files on disk, serve via FastAPI. Audio directory structure + cleanup.
-**Acceptance criteria:**
-
-- [ ] Directory: `backend/audio/{project_id}/{chapter_id}/`
-- [ ] Files: `audio.wav`, `audio.mp3`, `timeline.json`
-- [ ] `GET /chapters/{id}/audio/stream` — HTTP range request streaming (seekable)
-- [ ] `GET /chapters/{id}/audio/download` — download MP3 or WAV
-- [ ] `DELETE /projects/{id}` cascade: delete audio files too
-- [ ] Config: audio storage path (default `./audio/`)
-  **Verification:**
-- [ ] Audio streams with seek support
-- [ ] Download works
-- [ ] Project deletion cleans audio files
-  **Dependencies:** Task 25
-  **Files likely touched:**
-
-- `backend/src/services/audio_store.py`
-- `backend/src/api/routes/tts.py` (extend)
-  **Estimated scope:** Small (2 files)
-
----
-
-### Task 27: Audio player UI + auto-next
-
-**Description:** Frontend audio player with play/pause/seek/speed/skip + auto-next chapter.
-**Acceptance criteria:**
-
-- [ ] Audio player component: play, pause, seek bar, speed (0.5x–2x), skip ±15s
-- [ ] Voice selector dropdown (14 preset voices)
-- [ ] Style selector: `tu_nhien`, `tin_tuc`, `doc_truyen` (default)
-- [ ] "Generate TTS" button per chapter → progress indicator
-- [ ] Auto-next: when audio ends, auto-play next chapter (toggleable)
-- [ ] Chapter list shows audio status (generated/pending)
-- [ ] Volume control
-  **Verification:**
-- [ ] Audio plays in browser
-- [ ] Seek works (drag + click)
-- [ ] Speed control works
-- [ ] Auto-next transitions smoothly
-  **Dependencies:** Task 25, Task 13
-  **Files likely touched:**
-
-- `frontend/src/components/AudioPlayer.tsx`
-- `frontend/src/components/VoiceSelector.tsx`
-- `frontend/src/hooks/useAudio.ts`
-  **Estimated scope:** Medium (2-3 files)
-
----
-
-### Task 28: Text sync (karaoke)
-
-**Description:** Highlight current text segment synced with audio playback. Click text → seek audio.
-**Acceptance criteria:**
-
-- [ ] Timeline data fetched from `/chapters/{id}/audio`
-- [ ] `timeupdate` event → find current segment → highlight
-- [ ] Auto-scroll to current segment (smooth)
-- [ ] Click text segment → seek audio to `start_time`
-- [ ] Highlight style: background color + smooth transition
-- [ ] Works with speed change (timeline adjusts)
-- [ ] Toggle: karaoke mode on/off
-  **Verification:**
-- [ ] Highlight follows audio accurately (<100ms drift)
-- [ ] Click seeks to correct position
-- [ ] Auto-scroll keeps current segment visible
-- [ ] Toggle works
-  **Dependencies:** Task 27
-  **Files likely touched:**
-
-- `frontend/src/components/TextSync.tsx`
-- `frontend/src/hooks/useTimeline.ts`
-  **Estimated scope:** Medium (2 files)
+- [ ] Highlight current segment synced with audio
+- [ ] Click text → seek audio
+- [ ] Auto-scroll
 
 ---
 
 ## Checkpoint: TTS Integration
-
-- [ ] Generate TTS from translated chapter → playable audio
-- [ ] Karaoke text sync works
-- [ ] Auto-next chapter works
-- [ ] Both WAV + MP3 available
-- [ ] Emotion cues audible in audio
+- [ ] TTS from translated chapter → playable audio
+- [ ] Karaoke text sync
+- [ ] Auto-next chapter
+- [ ] WAV + MP3 available
 
 ---
 
 ## Checkpoint: Complete
-
 - [ ] All acceptance criteria met
 - [ ] Ready for use
-

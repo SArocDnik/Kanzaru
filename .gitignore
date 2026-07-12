@@ -23,5 +23,8 @@ Thumbs.db
 .vscode/
 .idea/
 
+# CodeGraph index
+.codegraph/
+
 # Large test files
 *.pdf

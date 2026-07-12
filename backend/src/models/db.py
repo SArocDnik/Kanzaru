@@ -8,6 +8,9 @@ class Project(SQLModel, table=True):
     name: str
     source_lang: str = "auto"
     target_lang: str = "vi"
+    genre: str = ""
+    sample_original: str = ""
+    sample_translated: str = ""
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

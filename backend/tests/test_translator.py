@@ -1,7 +1,8 @@
 from unittest.mock import MagicMock
 import pytest
 from src.services.translator import (
-    TranslationContext, _chunk_text, build_prompt, translate_chapter, translate_chapter_stream
+    TranslationContext, _chunk_text, build_prompt, translate_chapter, translate_chapter_stream,
+    translate_chapter_3step, build_3step_prompts,
 )
 
 
@@ -33,6 +34,63 @@ def test_build_prompt_includes_context():
     assert "sensei=thầy" in prompt
     assert "Some text" in prompt
     assert "[cười]" in prompt
+
+
+def test_build_prompt_includes_relationships():
+    ctx = TranslationContext(
+        summary="Hero's journey",
+        characters="Taro (protagonist)",
+        glossary="sensei=thầy",
+        relationships="Taro — Yuki (romantic): childhood friends",
+    )
+    prompt = build_prompt("Some text", ctx)
+    assert "Taro — Yuki" in prompt
+    assert "romantic" in prompt
+
+
+def test_build_prompt_includes_persona_and_genre():
+    ctx = TranslationContext(genre="dark fantasy, military fiction")
+    prompt = build_prompt("Some text", ctx)
+    assert "dịch giả văn học" in prompt.lower()
+    assert "dark fantasy" in prompt
+
+
+def test_build_prompt_includes_constraints():
+    ctx = TranslationContext()
+    prompt = build_prompt("Some text", ctx)
+    assert "thành ngữ" in prompt.lower() or "idiom" in prompt.lower()
+    assert "tóm tắt" in prompt.lower() or "summarize" in prompt.lower() or "shorten" in prompt.lower()
+
+
+def test_build_prompt_includes_sample():
+    ctx = TranslationContext(
+        sample_original="Hello world",
+        sample_translated="Xin chào thế giới",
+    )
+    prompt = build_prompt("Some text", ctx)
+    assert "Hello world" in prompt
+    assert "Xin chào thế giới" in prompt
+
+
+def test_build_3step_prompts_returns_three_messages():
+    ctx = TranslationContext(genre="fantasy")
+    prompts = build_3step_prompts("Hello world", ctx)
+    assert len(prompts) == 3
+    for p in prompts:
+        assert "Hello world" in p
+
+
+def test_translate_chapter_3step_returns_final_only():
+    mock_client = MagicMock()
+    mock_client.chat.side_effect = [
+        "Bản thô",
+        "Phản biện: cần sửa",
+        "Bản dịch hoàn chỉnh",
+    ]
+    ctx = TranslationContext()
+    result = translate_chapter_3step("Hello", ctx, client=mock_client)
+    assert result == "Bản dịch hoàn chỉnh"
+    assert mock_client.chat.call_count == 3
 
 
 def test_translate_chapter_single_chunk():
