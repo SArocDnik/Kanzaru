@@ -102,6 +102,24 @@ Upload PDF/Text
 
 ### Checkpoint: Translation Quality — DONE
 
+### Phase 4.5: Gemini API Integration
+
+- [x] **Task G1:** LLMProvider Protocol + LLMClient implements interface
+- [x] **Task G2:** Config — Gemini settings (provider, api_key, model, quality_model, delay, retries)
+- [x] **Task G3:** GeminiClient — chat, stream, health_check, retry + rate limit, safety settings
+- [x] **Task G4:** llm_factory — `get_llm_client(quality=False)` switches provider
+- [x] **Task G5:** Translate route uses factory + quality param
+- [x] **Task G6:** Chapters route (analyze) uses factory
+- [x] **Task G7:** Characters route (relationships) uses factory
+- [x] **Task G8:** LLM route — health + models for both providers
+- [x] **Task G9:** `.env.example` updated with Gemini vars + key instructions
+
+### Checkpoint: Gemini Integration — DONE
+- [x] Gemini là default provider, Ollama vẫn dùng được
+- [x] 74/74 tests pass
+- [x] Retry + rate limit hoạt động (4s delay, 3 retries backoff)
+- [x] `.env` không commit, `.env.example` không chứa key thật
+
 ### Phase 5: Enhancement — Research & Glossary
 
 - [ ] **Task 21:** Glossary manager service + API (CRUD, persist per project)
@@ -143,7 +161,10 @@ Upload PDF/Text
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Ollama chưa cài trên máy | High | Health check endpoint + setup docs |
+| Ollama chưa cài trên máy | High | Health check endpoint + setup docs; Gemini default không cần Ollama |
+| Gemini free tier 15 RPM | High | Delay 4s + retry backoff (3 retries, 2^n) |
+| Gemini safety block nội dung | Med | `safetySettings: BLOCK_NONE` cho 4 categories |
+| Key `AQ.Ab8...` format mới | Low | Dùng `X-goog-api-key` header, hoạt động |
 | OCR chất lượng thấp | Med | RapidOCR + manual text fallback |
 | LLM context overflow chương dài | Med | Chunk ~8000 chars, carry context |
 | Translation quality inconsistent | Med | 3-step translation mode + persona prompt + few-shot |
@@ -153,8 +174,9 @@ Upload PDF/Text
 
 ## Open Questions
 
-1. **Model default:** Qwen2.5 7B — confirmed
+1. **Model default:** Gemini Flash (via `gemini-flash-latest`) — confirmed, Ollama Qwen2.5 7B as fallback
 2. **Chunk strategy:** Token count ~8000 chars — working
 3. **Honorifics policy:** Glossary-driven, keep if not in glossary — confirmed
 4. **Translation modes:** Fast (streaming) vs Quality (3-step) — both implemented
 5. **Genre + sample:** Stored per-project, passed to prompt — implemented
+6. **Gemini provider:** Default, with retry + rate limit for free tier — implemented
