@@ -70,7 +70,7 @@
 - [x] `PUT /chapters/{id}` — edit
 - [x] `POST /projects/{id}/chapters` — manual add
 - [x] `DELETE /chapters/{id}` — delete
-- [ ] LLM-assisted fallback khi không match pattern
+- [x] LLM-assisted fallback khi không match pattern (Tasks C1-C4)
 
 **Files:**
 - `backend/src/services/chapter_splitter.py`
@@ -508,6 +508,71 @@
 - [x] Retry + rate limit hoạt động (4s delay, 3 retries backoff)
 - [x] `.env` không commit, `.env.example` không chứa key thật
 - [x] Manual test: Gemini chat + stream hoạt động với key thật
+
+---
+
+### Task C1: Prompt LLM detect chapter boundaries
+
+**Description:** Tạo prompt gửi text cho LLM, trả JSON list chapters với title + start_marker.
+
+- [x] `CHAPTER_DETECT_PROMPT` — prompt trả JSON `{chapters: [{title, start_marker, estimated_number}]}`
+- [x] Hướng dẫn LLM tìm: Chapter N, Chương N, 第N章, Prologue, Epilogue, 序章, 終章, Interlude, Part N, Section N, 第N節
+- [x] `start_marker` = verbatim ~80 chars đầu chương (dùng để split text)
+- [x] Xử lý text không có chapter structure → trả 1 chapter
+
+**Files:**
+- `backend/src/prompts/chapter_detect.py` (new)
+
+---
+
+### Task C2: Implement detect_chapters_llm() + detect_chapters_with_fallback()
+
+**Description:** LLM-based chapter detection. Fallback: regex first, LLM khi regex không match.
+
+- [x] `detect_chapters_llm(text, client, max_chars=30000)` — gọi LLM, parse JSON, split text bằng start_marker
+- [x] `detect_chapters_with_fallback(text, client, lang_hint)` — regex first, nếu 1 chapter → LLM fallback
+- [x] `_parse_llm_json()` — parse JSON từ LLM (xử lý markdown wrapper)
+- [x] Error handling: invalid JSON → trả single chapter, không crash
+- [x] 7 unit tests pass (`test_chapter_llm_detect.py`)
+
+**Files:**
+- `backend/src/services/chapter_splitter.py`
+- `backend/tests/test_chapter_llm_detect.py` (new)
+
+---
+
+### Task C3: Update detect route — fallback LLM
+
+**Description:** Sửa `api/routes/chapters.py` endpoint `/projects/{id}/chapters/detect` dùng `detect_chapters_with_fallback()`.
+
+- [x] `detect_chapters_route` dùng `detect_chapters_with_fallback(text, client=get_llm_client(), lang_hint)`
+- [x] Regex match → không gọi LLM (tiết kiệm API)
+- [x] Regex không match → LLM fallback
+- [x] Tests pass (`test_chapters_api.py`)
+
+**Files:**
+- `backend/src/api/routes/chapters.py`
+
+---
+
+### Task C4: Test LLM chapter detection
+
+**Description:** Unit tests + manual test với Gemini API thật.
+
+- [x] Unit: parse response, invalid JSON, empty chapters, marker not found, fallback logic
+- [x] Manual: text với "Part One/Interlude/Part Two" → Gemini tách 4 chapters đúng
+- [x] 81/81 tests pass
+
+**Files:**
+- `backend/tests/test_chapter_llm_detect.py`
+
+---
+
+## Checkpoint: LLM Chapter Detection — DONE
+- [x] Regex match → dùng regex (nhanh, không tốn API)
+- [x] Regex không match → LLM detect (chính xác, tốn 1 API call)
+- [x] 81/81 tests pass
+- [x] Manual test: tách "Part One/Interlude/Part Two" từ text không có standard markers
 
 ---
 

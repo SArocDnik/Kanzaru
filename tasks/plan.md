@@ -120,6 +120,19 @@ Upload PDF/Text
 - [x] Retry + rate limit hoạt động (4s delay, 3 retries backoff)
 - [x] `.env` không commit, `.env.example` không chứa key thật
 
+### Phase 4.6: LLM Chapter Detection Fallback
+
+- [x] **Task C1:** Prompt LLM detect chapter boundaries (JSON output: title + start_marker)
+- [x] **Task C2:** `detect_chapters_llm()` + `detect_chapters_with_fallback()` in chapter_splitter
+- [x] **Task C3:** Detect route uses `detect_chapters_with_fallback()` — regex first, LLM fallback
+- [x] **Task C4:** 7 unit tests + manual test with Gemini (detected 4 chapters from unstructured text)
+
+### Checkpoint: LLM Chapter Detection — DONE
+- [x] Regex match → dùng regex (nhanh, không tốn API)
+- [x] Regex không match → LLM detect (chính xác, tốn 1 API call)
+- [x] 81/81 tests pass
+- [x] Manual test: tách "Part One/Interlude/Part Two" từ text không có standard markers
+
 ### Phase 5: Enhancement — Research & Glossary
 
 - [ ] **Task 21:** Glossary manager service + API (CRUD, persist per project)
