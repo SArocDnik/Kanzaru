@@ -17,10 +17,10 @@ def _setup_project_with_chapter(client: TestClient):
 def test_translate_chapter_api(client: TestClient):
     pid, ch_id = _setup_project_with_chapter(client)
 
-    with patch("src.api.routes.translate.LLMClient") as mock_cls:
+    with patch("src.api.routes.translate.get_llm_client") as mock_factory:
         mock_c = MagicMock()
         mock_c.chat.return_value = MOCK_TRANSLATION
-        mock_cls.return_value = mock_c
+        mock_factory.return_value = mock_c
 
         resp = client.post(f"/chapters/{ch_id}/translate")
 
@@ -53,13 +53,13 @@ def test_translate_not_found(client: TestClient):
 def test_translate_stream(client: TestClient):
     pid, ch_id = _setup_project_with_chapter(client)
 
-    with patch("src.api.routes.translate.LLMClient") as mock_cls:
+    with patch("src.api.routes.translate.get_llm_client") as mock_factory:
         mock_c = MagicMock()
         def fake_stream(msgs):
             for word in ["Xin", " chào", " thế", " giới."]:
                 yield word
         mock_c.stream.side_effect = lambda msgs: fake_stream(msgs)
-        mock_cls.return_value = mock_c
+        mock_factory.return_value = mock_c
 
         resp = client.get(f"/chapters/{ch_id}/translate/stream")
 
