@@ -15,8 +15,8 @@ class Settings(BaseSettings):
 
     llm_provider: str = "gemini"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
-    gemini_quality_model: str = "gemini-2.5-pro"
+    gemini_model: str = "gemini-flash-latest"
+    gemini_quality_model: str = "gemini-pro-latest"
     gemini_request_delay: float = 4.0
     gemini_max_retries: int = 3
 
