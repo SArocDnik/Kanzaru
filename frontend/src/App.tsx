@@ -6,6 +6,7 @@ import UploadPanel from "./components/UploadPanel"
 import ChapterList from "./components/ChapterList"
 import ChapterDetail from "./components/ChapterDetail"
 import AnalysisView from "./components/AnalysisView"
+import TranslationView from "./components/TranslationView"
 
 const queryClient = new QueryClient()
 
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/projects/:id" element={<ChapterList />} />
             <Route path="/projects/:id/chapters/:chapterId" element={<ChapterDetail />} />
             <Route path="/projects/:id/chapters/:chapterId/analyze" element={<AnalysisView />} />
+            <Route path="/projects/:id/chapters/:chapterId/translate" element={<TranslationView />} />
           </Route>
         </Routes>
       </BrowserRouter>
