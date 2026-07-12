@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useChapter } from "../hooks/useChapters"
 import { useTranslation, useUpdateTranslation, useStreamTranslation } from "../hooks/useTranslation"
+import { useToast } from "../contexts/ToastContext"
 
 const CUE_REGEX = /\[(cười|thở dài|hắng giọng|giật mình|càu nhàu|thì thầm|hét lên|nói nhỏ)\]/g
 
@@ -23,6 +24,7 @@ export default function TranslationView() {
   const chId = Number(chIdStr)
   const projectId = Number(projectIdStr)
   const navigate = useNavigate()
+  const { addToast } = useToast()
 
   const { data: chapter } = useChapter(chId)
   const { data: translationData } = useTranslation(chId)
@@ -34,6 +36,15 @@ export default function TranslationView() {
   const [editText, setEditText] = useState("")
 
   const displayText = streaming ? streamedText : (translationData?.translated_text ?? "")
+  const wasStreaming = useRef(false)
+
+  useEffect(() => {
+    if (streaming) wasStreaming.current = true
+    if (!streaming && wasStreaming.current && streamedText) {
+      addToast(`Translation complete: ${streamedText.length} chars`, "success")
+      wasStreaming.current = false
+    }
+  }, [streaming, streamedText, addToast])
 
   useEffect(() => {
     if (translationData?.translated_text && !editText) {

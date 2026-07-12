@@ -1,6 +1,8 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useChapter, useUpdateChapter } from "../hooks/useChapters"
+import { useExtractStream } from "../hooks/useExtractStream"
+import { useToast } from "../contexts/ToastContext"
 import type { ChapterUpdate } from "../types"
 
 export default function ChapterDetail() {
@@ -10,10 +12,32 @@ export default function ChapterDetail() {
   const { data: chapter, isLoading } = useChapter(chId)
   const update = useUpdateChapter()
   const navigate = useNavigate()
+  const { addToast } = useToast()
+  const { streaming, progress, done, error, start, stop } = useExtractStream()
+  const startedRef = useRef(false)
 
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState("")
   const [text, setText] = useState("")
+
+  useEffect(() => {
+    if (chapter?.status === "processing" && !startedRef.current && !streaming && !done) {
+      startedRef.current = true
+      start(chId)
+    }
+  }, [chapter?.status, chId, start, streaming, done])
+
+  useEffect(() => {
+    if (done) {
+      addToast("Extraction complete", "success")
+    }
+  }, [done, addToast])
+
+  useEffect(() => {
+    if (error) {
+      addToast(`Extraction error: ${error}`, "error")
+    }
+  }, [error, addToast])
 
   if (isLoading) return <p className="text-slate-500">Loading...</p>
   if (!chapter) return <p className="text-slate-500">Chapter not found.</p>
@@ -28,9 +52,35 @@ export default function ChapterDetail() {
     const data: ChapterUpdate = { title, original_text: text }
     update.mutate(
       { id: chId, data },
-      { onSuccess: () => setEditing(false) },
+      {
+        onSuccess: () => {
+          setEditing(false)
+          addToast("Chapter saved", "success")
+        },
+        onError: (err) => addToast(`Save failed: ${err.message}`, "error"),
+      },
     )
   }
+
+  const nextStep = () => {
+    switch (chapter.status) {
+      case "uploaded":
+      case "detected":
+        return { text: "Analyze this chapter to extract characters and summary", to: "analyze" }
+      case "analyzed":
+        return { text: "Translate this chapter to the target language", to: "translate" }
+      case "translated":
+        return null
+      default:
+        return null
+    }
+  }
+
+  const step = nextStep()
+
+  const pct = progress && progress.total > 0
+    ? Math.round((progress.page / progress.total) * 100)
+    : 0
 
   return (
     <div className="flex flex-col h-full">
@@ -103,6 +153,53 @@ export default function ChapterDetail() {
           </button>
         )}
       </div>
+
+      {(streaming || progress || done || error) && (
+        <div className="mb-4 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-slate-700">
+              {error ? "Extraction failed" : done ? "Extraction complete" : streaming ? "Extracting..." : "Ready"}
+            </span>
+            {progress && (
+              <span className="text-xs text-slate-500">
+                Page {progress.page}/{progress.total} — {progress.method} ({progress.chars} chars)
+              </span>
+            )}
+          </div>
+          {progress && (
+            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-full transition-all duration-300"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          )}
+          {error && (
+            <p className="text-sm text-red-600 mt-1">{error}</p>
+          )}
+          {streaming && (
+            <button
+              onClick={stop}
+              className="mt-2 px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-500"
+            >
+              Stop
+            </button>
+          )}
+        </div>
+      )}
+
+      {step && (
+        <div className="mb-4 px-4 py-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700 flex items-center gap-2">
+          <span className="text-lg">→</span>
+          <span>Next: {step.text}</span>
+          <button
+            onClick={() => navigate(`/projects/${projectId}/chapters/${chId}/${step.to}`)}
+            className="ml-auto px-3 py-1 bg-blue-700 text-white rounded hover:bg-blue-600 text-xs"
+          >
+            Go to {step.to === "analyze" ? "Analysis" : "Translation"}
+          </button>
+        </div>
+      )}
 
       {editing ? (
         <textarea

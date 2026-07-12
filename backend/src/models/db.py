@@ -25,6 +25,7 @@ class Chapter(SQLModel, table=True):
     translated_text: str = ""
     summary: str = ""
     analysis_json: str = ""
+    file_path: str = ""
     status: str = "pending"
 
     project: Optional[Project] = Relationship(back_populates="chapters")

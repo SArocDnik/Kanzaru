@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from io import BytesIO
-from typing import BinaryIO, Union
+from typing import BinaryIO, Union, AsyncIterator
 
 BytesLike = Union[bytes, bytearray, BytesIO, BinaryIO]
 
@@ -10,6 +10,15 @@ class PageText:
     page_num: int
     text: str
     extraction_method: str  # "text", "pymupdf", "ocr", "needs_ocr"
+
+
+@dataclass
+class ExtractProgress:
+    page_num: int
+    total_pages: int
+    method: str
+    chars: int
+    text: str
 
 
 def _to_bytes(file: BytesLike) -> bytes:
@@ -85,3 +94,43 @@ def extract_with_ocr(file: BytesLike) -> list[PageText]:
 
     doc.close()
     return pages
+
+
+async def extract_pdf_streaming(file_path: str) -> AsyncIterator[ExtractProgress]:
+    import fitz
+
+    doc = fitz.open(file_path)
+    total = len(doc)
+
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+        ocr = RapidOCR()
+        has_ocr = True
+    except ImportError:
+        has_ocr = False
+
+    for i, page in enumerate(doc):
+        text = page.get_text().strip()
+        method = "pymupdf"
+
+        if len(text) < 50:
+            if has_ocr:
+                method = "ocr"
+                pix = page.get_pixmap(dpi=200)
+                img_bytes = pix.tobytes("png")
+                import asyncio
+                result, _ = await asyncio.to_thread(ocr, img_bytes)
+                text = " ".join([line[1] for line in result]) if result else ""
+                text = text.strip()
+            else:
+                method = "ocr_failed"
+
+        yield ExtractProgress(
+            page_num=i + 1,
+            total_pages=total,
+            method=method,
+            chars=len(text),
+            text=text,
+        )
+
+    doc.close()

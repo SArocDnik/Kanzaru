@@ -39,6 +39,7 @@ class ChapterRead(SQLModel):
     translated_text: str
     summary: str
     status: str
+    file_path: str = ""
 
 
 class ChapterUpdate(SQLModel):

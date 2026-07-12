@@ -11,6 +11,9 @@ export function useUpload() {
       if (text) formData.append("text", text)
       return api.upload<UploadResult>(`/projects/${projectId}/upload`, formData)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+    onSuccess: (_, { projectId }) => {
+      qc.invalidateQueries({ queryKey: ["projects"] })
+      qc.invalidateQueries({ queryKey: ["chapters", projectId] })
+    },
   })
 }

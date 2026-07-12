@@ -16,7 +16,7 @@ def test_upload_text(client: TestClient):
     assert data["chars"] > 0
 
 
-def test_upload_pdf(client: TestClient):
+def test_upload_pdf_saves_file_and_returns_processing(client: TestClient):
     import fitz
     doc = fitz.open()
     page = doc.new_page()
@@ -33,7 +33,10 @@ def test_upload_pdf(client: TestClient):
         files={"file": ("test.pdf", buf.getvalue(), "application/pdf")},
     )
     assert resp.status_code == 200
-    assert resp.json()["chapter_id"] > 0
+    data = resp.json()
+    assert data["chapter_id"] > 0
+    assert data["status"] == "processing"
+    assert "file_path" in data
 
 
 def test_upload_nothing(client: TestClient):

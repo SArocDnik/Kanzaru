@@ -1,5 +1,6 @@
 import { useChapters, useDetectChapters, useDeleteChapter } from "../hooks/useChapters"
 import { useNavigate, useParams } from "react-router-dom"
+import { useToast } from "../contexts/ToastContext"
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-slate-200 text-slate-700",
@@ -17,6 +18,7 @@ export default function ChapterList() {
   const detect = useDetectChapters()
   const deleteChapter = useDeleteChapter()
   const navigate = useNavigate()
+  const { addToast } = useToast()
 
   return (
     <div className="flex flex-col h-full">
@@ -34,7 +36,13 @@ export default function ChapterList() {
           )}
         </div>
         <button
-          onClick={() => detect.mutate(projectId)}
+          onClick={() =>
+            detect.mutate(projectId, {
+              onSuccess: (chs) =>
+                addToast(`Detected ${chs.length} chapter${chs.length !== 1 ? "s" : ""}`, "success"),
+              onError: (err) => addToast(`Detection failed: ${err.message}`, "error"),
+            })
+          }
           disabled={detect.isPending}
           className="px-3 py-1.5 text-sm bg-slate-800 text-white rounded hover:bg-slate-700 disabled:opacity-50"
         >
@@ -71,7 +79,11 @@ export default function ChapterList() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (confirm(`Delete "${ch.title}"?`)) deleteChapter.mutate(ch.id)
+                  if (confirm(`Delete "${ch.title}"?`))
+                    deleteChapter.mutate(ch.id, {
+                      onSuccess: () => addToast(`Deleted chapter "${ch.title}"`, "info"),
+                      onError: (err) => addToast(`Delete failed: ${err.message}`, "error"),
+                    })
                 }}
                 className="text-slate-300 hover:text-red-500 text-sm"
               >

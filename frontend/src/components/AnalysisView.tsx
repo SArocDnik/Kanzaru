@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useAnalysis, useAnalyzeChapter, useRelationships, useMapRelationships } from "../hooks/useAnalysis"
+import { useToast } from "../contexts/ToastContext"
 import CharacterGraph from "./CharacterGraph"
 
 export default function AnalysisView() {
@@ -13,11 +14,21 @@ export default function AnalysisView() {
   const analyze = useAnalyzeChapter()
   const { data: relData } = useRelationships(projectId)
   const mapRels = useMapRelationships()
+  const { addToast } = useToast()
 
   const [selectedChar, setSelectedChar] = useState<string | null>(null)
 
-  const handleAnalyze = () => analyze.mutate(chId)
-  const handleMapRels = () => mapRels.mutate(chId)
+  const handleAnalyze = () =>
+    analyze.mutate(chId, {
+      onSuccess: (result) =>
+        addToast(`Analysis complete: ${result.characters} characters, ${result.key_terms} key terms`, "success"),
+      onError: (err) => addToast(`Analysis failed: ${err.message}`, "error"),
+    })
+  const handleMapRels = () =>
+    mapRels.mutate(chId, {
+      onSuccess: (result) => addToast(`Mapped ${result.relationships_created} new relationships (${result.total} total)`, "success"),
+      onError: (err) => addToast(`Relationship mapping failed: ${err.message}`, "error"),
+    })
 
   return (
     <div className="flex flex-col h-full">

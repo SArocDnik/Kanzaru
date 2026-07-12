@@ -22,12 +22,15 @@ export interface Chapter {
   translated_text: string
   summary: string
   status: string
+  file_path: string
 }
 
 export interface UploadResult {
   chapter_id: number
-  pages: number
-  chars: number
+  file_path?: string
+  pages?: number
+  chars?: number
+  status: string
 }
 
 export interface ChapterUpdate {

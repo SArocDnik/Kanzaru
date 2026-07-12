@@ -2,30 +2,54 @@ import { useState, useRef } from "react"
 import { useProjects } from "../hooks/useProject"
 import { useUpload } from "../hooks/useUpload"
 import { useNavigate } from "react-router-dom"
+import { useToast } from "../contexts/ToastContext"
+import type { UploadResult } from "../types"
 
 export default function UploadPanel() {
   const { data: projects } = useProjects()
   const upload = useUpload()
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [projectId, setProjectId] = useState<number | null>(null)
   const [text, setText] = useState("")
   const [dragOver, setDragOver] = useState(false)
+  const [lastResult, setLastResult] = useState<UploadResult | null>(null)
+
+  const navigateAfter = (pid: number, chId: number) => {
+    setTimeout(() => navigate(`/projects/${pid}/chapters/${chId}`), 1000)
+  }
 
   const handleFile = (file: File) => {
     if (!projectId) return
+    setLastResult(null)
     upload.mutate(
       { projectId, file },
-      { onSuccess: () => navigate(`/projects/${projectId}`) },
+      {
+        onSuccess: (result) => {
+          setLastResult(result)
+          addToast(`File uploaded. Starting extraction...`, "success")
+          navigateAfter(projectId, result.chapter_id)
+        },
+        onError: (err) => addToast(`Upload failed: ${err.message}`, "error"),
+      },
     )
   }
 
   const handleText = () => {
     if (!projectId || !text.trim()) return
+    setLastResult(null)
     upload.mutate(
       { projectId, text },
-      { onSuccess: () => navigate(`/projects/${projectId}`) },
+      {
+        onSuccess: (result) => {
+          setLastResult(result)
+          addToast(`Text uploaded: ${result.chars} chars`, "success")
+          setTimeout(() => navigate(`/projects/${projectId}`), 1000)
+        },
+        onError: (err) => addToast(`Upload failed: ${err.message}`, "error"),
+      },
     )
   }
 
@@ -107,8 +131,15 @@ export default function UploadPanel() {
       {upload.isPending && (
         <div className="mt-4 text-slate-600 animate-pulse">Uploading...</div>
       )}
+      {lastResult && (
+        <div className="mt-4 text-green-700 bg-green-50 px-4 py-2 rounded border border-green-200">
+          ✓ File saved. {lastResult.status === "processing" ? "Redirecting to extraction progress..." : `Uploaded — ${lastResult.chars} chars.`}
+        </div>
+      )}
       {upload.isError && (
-        <div className="mt-4 text-red-600">Error: {upload.error?.message}</div>
+        <div className="mt-4 text-red-600 bg-red-50 px-4 py-2 rounded border border-red-200">
+          Error: {upload.error?.message}
+        </div>
       )}
     </div>
   )
