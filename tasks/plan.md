@@ -199,14 +199,14 @@ D:\Kanzaru\
 
 ### Phase 3: Frontend — Web UI
 
-- [ ] **Task 9:** Frontend scaffold (Vite + React + TS + Tailwind)
-- [ ] **Task 10:** Upload panel + project list UI
-- [ ] **Task 11:** Chapter manager UI (view, edit, reorder)
-- [ ] **Task 12:** Analysis view (summary + character graph with reactflow)
-- [ ] **Task 13:** Translation view (SSE streaming, emotion cue edit)
+- [x] **Task 9:** Frontend scaffold (Vite + React + TS + Tailwind)
+- [x] **Task 10:** Upload panel + project list UI
+- [x] **Task 11:** Chapter manager UI (view, edit, reorder)
+- [x] **Task 12:** Analysis view (summary + character graph with reactflow)
+- [x] **Task 13:** Translation view (SSE streaming, emotion cue edit)
 
 ### Checkpoint: Web UI
-- [ ] Full flow works in browser: upload → analyze → translate → view results
+- [x] Full flow works in browser: upload → analyze → translate → view results
 
 ### Phase 4: Enhancement — Research & Glossary
 

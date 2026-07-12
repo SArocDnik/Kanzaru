@@ -241,15 +241,15 @@
 **Description:** Init React + Vite + TypeScript + Tailwind. Basic layout, routing, API client.
 **Acceptance criteria:**
 
-- [ ] Vite + React + TS project created
-- [ ] Tailwind CSS configured
-- [ ] API client (`fetch` wrapper) with base URL config
-- [ ] Basic layout: sidebar + main content area
-- [ ] React Router setup (projects, upload, translate views)
-- [ ] TanStack Query provider configured
+- [x] Vite + React + TS project created
+- [x] Tailwind CSS configured
+- [x] API client (`fetch` wrapper) with base URL config
+- [x] Basic layout: sidebar + main content area
+- [x] React Router setup (projects, upload, translate views)
+- [x] TanStack Query provider configured
   **Verification:**
-- [ ] `npm run dev` starts at `localhost:5173`
-- [ ] Can call backend `/health` from frontend
+- [x] `npm run dev` starts at `localhost:5173`
+- [x] Can call backend `/health` from frontend
   **Dependencies:** None (parallel with Phase 1-2 possible)
   **Files likely touched:**
 
@@ -268,15 +268,15 @@
 **Description:** UI for creating projects, uploading PDF/text, viewing project list.
 **Acceptance criteria:**
 
-- [ ] Project list page: cards with name, lang pair, chapter count, status
-- [ ] New project modal: name, source lang, target lang
-- [ ] Upload panel: drag-drop PDF or paste text
-- [ ] Upload progress indicator
-- [ ] Navigate to project detail after upload
+- [x] Project list page: cards with name, lang pair, chapter count, status
+- [x] New project modal: name, source lang, target lang
+- [x] Upload panel: drag-drop PDF or paste text
+- [x] Upload progress indicator
+- [x] Navigate to project detail after upload
   **Verification:**
-- [ ] Create project → appears in list
-- [ ] Upload PDF → triggers extraction + chapter detection
-- [ ] Chapters visible in project detail
+- [x] Create project → appears in list
+- [x] Upload PDF → triggers extraction + chapter detection
+- [ ] Chapters visible in project detail (Task 11)
   **Dependencies:** Task 9
   **Files likely touched:**
 
@@ -294,15 +294,15 @@
 **Description:** View, edit, reorder chapters. Show original text per chapter.
 **Acceptance criteria:**
 
-- [ ] Chapter list: sidebar with chapter numbers + titles
-- [ ] Chapter detail: original text view (scrollable)
-- [ ] Edit chapter title
+- [x] Chapter list: sidebar with chapter numbers + titles
+- [x] Chapter detail: original text view (scrollable)
+- [x] Edit chapter title
 - [ ] Split/merge chapters manually
-- [ ] Status badges: pending, analyzing, analyzed, translating, translated, tts_pending, tts_done
+- [x] Status badges: pending, analyzing, analyzed, translating, translated, tts_pending, tts_done
   **Verification:**
-- [ ] Chapters load from API
-- [ ] Edit saves to backend
-- [ ] Status updates reflect in UI
+- [x] Chapters load from API
+- [x] Edit saves to backend
+- [x] Status updates reflect in UI
   **Dependencies:** Task 10
   **Files likely touched:**
 
@@ -318,15 +318,15 @@
 **Description:** Display story summary + character relationship graph using reactflow.
 **Acceptance criteria:**
 
-- [ ] Summary panel: shows chapter summary
-- [ ] Character graph: nodes = characters, edges = relationships (labeled)
-- [ ] Click character → side panel with details (name, role, honorifics, appearances)
-- [ ] Graph auto-layout (force-directed or hierarchical)
-- [ ] Color-coded relationship types
+- [x] Summary panel: shows chapter summary
+- [x] Character graph: nodes = characters, edges = relationships (labeled)
+- [x] Click character → side panel with details (name, role, honorifics, appearances)
+- [x] Graph auto-layout (force-directed or hierarchical)
+- [x] Color-coded relationship types
   **Verification:**
-- [ ] Graph renders from API data
-- [ ] Interactive: click, hover, zoom, pan
-- [ ] Character details accurate
+- [x] Graph renders from API data
+- [x] Interactive: click, hover, zoom, pan
+- [x] Character details accurate
   **Dependencies:** Task 11
   **Files likely touched:**
 
@@ -342,21 +342,21 @@
 **Description:** View displaying streaming translation. Side-by-side or tab toggle original/translated. Edit emotion cues trước khi TTS.
 **Acceptance criteria:**
 
-- [ ] "Translate" button triggers SSE stream
-- [ ] Translation appears progressively (word by word)
+- [x] "Translate" button triggers SSE stream
+- [x] Translation appears progressively (word by word)
 - [ ] Progress bar (chapter chunk X/Y)
-- [ ] Toggle: original only / translated only / side-by-side
-- [ ] Translation stored — reload shows cached translation
-- [ ] Re-translate button (with confirmation)
-- [ ] Edit mode: textarea to add/remove emotion cues `[cười]`, `[thở dài]`, `[hắng giọng]`
-- [ ] Emotion cues highlighted in edit mode (distinct color)
-- [ ] Save edited translation to backend
+- [x] Toggle: original only / translated only / side-by-side
+- [x] Translation stored — reload shows cached translation
+- [x] Re-translate button (with confirmation)
+- [x] Edit mode: textarea to add/remove emotion cues `[cười]`, `[thở dài]`, `[hắng giọng]`
+- [x] Emotion cues highlighted in edit mode (distinct color)
+- [x] Save edited translation to backend
   **Verification:**
-- [ ] SSE stream works in browser
-- [ ] Translation appears in real-time
-- [ ] Page reload shows stored translation
-- [ ] Emotion cues visible + editable
-- [ ] Save persists changes
+- [x] SSE stream works in browser
+- [x] Translation appears in real-time
+- [x] Page reload shows stored translation
+- [x] Emotion cues visible + editable
+- [x] Save persists changes
   **Dependencies:** Task 12
   **Files likely touched:**
 
@@ -368,11 +368,11 @@
 
 ## Checkpoint: Web UI
 
-- [ ] Full browser flow: upload → detect chapters → analyze → translate → view
-- [ ] SSE streaming works end-to-end
-- [ ] Character graph interactive
-- [ ] Emotion cues visible + editable
-- [ ] No console errors
+- [x] Full browser flow: upload → detect chapters → analyze → translate → view
+- [x] SSE streaming works end-to-end
+- [x] Character graph interactive
+- [x] Emotion cues visible + editable
+- [x] No console errors
 
 ---
 
