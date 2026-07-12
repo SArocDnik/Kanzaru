@@ -4,7 +4,7 @@ from src.api.deps import get_session
 from src.config import settings
 from src.models.db import Character, CharacterRelationship, Chapter
 from src.services.analyzer import CharacterInfo, map_relationships
-from src.services.llm_client import LLMClient
+from src.services.llm_factory import get_llm_client
 
 router = APIRouter(tags=["characters"])
 
@@ -71,7 +71,7 @@ def map_chapter_relationships(chapter_id: int, session: Session = Depends(get_se
         for c in chars
     ]
 
-    client = LLMClient(url=settings.ollama_url, model=settings.ollama_model)
+    client = get_llm_client(quality=False)
     relationships = map_relationships(char_infos, chapter.original_text, client)
 
     char_name_to_id = {c.name: c.id for c in chars}
