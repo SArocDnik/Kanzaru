@@ -576,6 +576,80 @@
 
 ---
 
+### Phase 4.7: Translation Prompt Refinement
+
+### Task P1: Nới lỏng Nguyên tắc 1 — cho phép tách/gộp câu
+
+**Description:** Sửa `TRANSLATE_PROMPT` Nguyên tắc 1 để không còn mâu thuẫn với Nguyên tắc 5. Cho phép tách/gộp câu khi cấu trúc tiếng Anh phức tạp, miễn không sót/thay đổi ý gốc.
+
+- [ ] Đổi "Mỗi câu gốc phải có đúng một câu dịch tương ứng. Không gộp câu, không tách câu tuỳ tiện" → "Ưu tiên giữ cấu trúc tương đương từng câu, nhưng ĐƯỢC PHÉP tách hoặc gộp câu nếu cấu trúc tiếng Anh quá phức tạp, miễn KHÔNG làm sót hay thay đổi ý gốc"
+- [ ] Giữ nguyên "KHÔNG được tóm tắt câu dài thành câu ngắn"
+- [ ] Giữ nguyên "Giữ nguyên tông giọng và phong cách tác giả"
+
+**Files:** `backend/src/prompts/translate.py`
+**Estimated scope:** S (1 file)
+
+---
+
+### Task P2: Gộp Nguyên tắc 3 + 5 → một nguyên tắc duy nhất
+
+**Description:** Trùng lặp ý giữa NT3 (Bản địa hoá) và NT5 (Tự nhiên mượt mà). Gộp thành "BẢN ĐỊA HÓA VÀ DIỄN ĐẠT TỰ NHIÊN". Đánh số lại các nguyên tắc còn lại.
+
+- [ ] Gộp NT3 + NT5 thành một nguyên tắc duy nhất
+- [ ] Giữ ví dụ: "another nail in the coffin" → giáng thêm đòn chí mạng; "in the red" → thâm hụt; "say ahh" → "nào, 'a' nào"
+- [ ] Giữ luật: đảo ngữ, câu chủ động thay bị động, thành ngữ → tương đương, Hán Việt/thuần Việt tuỳ ngữ cảnh
+- [ ] Đánh số lại: NT4→NT4, NT6→NT5, NT7→NT6, NT8→NT7
+
+**Files:** `backend/src/prompts/translate.py`
+**Estimated scope:** S (1 file)
+
+---
+
+### Task P3: Sửa Nguyên tắc Emotion cues
+
+**Description:** Hiện tại AI tự chèn `[cười]`, `[thở dài]` làm văn xuôi biến thành kịch bản. Sửa thành: chỉ chèn cue khi gốc là kịch bản/game, văn xuôi thì hoà cảm xúc vào lời thoại/câu dẫn.
+
+- [ ] Đổi luật: "Chỉ chèn emotion cues `[hành động]` nếu văn bản gốc đang sử dụng cấu trúc tương tự (kịch bản, lời thoại game). Đối với văn xuôi thông thường, hãy chuyển hoá cảm xúc vào chính lời thoại và câu dẫn tiếng Việt"
+- [ ] Giữ danh sách cue mẫu để tham khảo khi cần
+
+**Files:** `backend/src/prompts/translate.py`
+**Estimated scope:** S (1 file)
+
+---
+
+### Task P4: Cập nhật test_translator.py
+
+**Description:** Test hiện assert `"[cười]" in prompt` — vẫn pass vì danh sách cue mẫu còn. Kiểm tra không test bị fail do đổi luật.
+
+- [ ] Chạy `pytest backend/tests/test_translator.py` — tất cả pass
+- [ ] Nếu fail, sửa assertion cho phù hợp prompt mới
+
+**Files:** `backend/tests/test_translator.py`
+**Estimated scope:** S (1 file)
+
+---
+
+### Task P5: Dịch lại example_1.txt theo prompt mới
+
+**Description:** Dịch lại `backend/tests/example_1.txt` theo prompt tinh chỉnh, so sánh với bản cũ. Kiểm tra: không còn cue cứng nhắc, câu phức tạp được tách tự nhiên.
+
+- [ ] Dịch lại, ghi đè `example_1_translated.txt`
+- [ ] So sánh: câu phức tạp tách OK, không cue `[hét lên]` chèn tuỳ tiện, thành ngữ dịch thoát ý
+- [ ] Không còn "nói aa" → "nào, 'a' nào" hoặc "há miệng ra nào"
+
+**Files:** `backend/tests/example_1_translated.txt`
+**Estimated scope:** S (1 file)
+
+---
+
+### Checkpoint: Prompt Refinement — DONE
+- [ ] Prompt không còn mâu thuẫn nội tại (NT1 vs NT5, NT3 vs NT5)
+- [ ] Emotion cues không biến văn xuôi thành kịch bản
+- [ ] 81/81 tests pass
+- [ ] Bản dịch example_1 tự nhiên hơn bản cũ
+
+---
+
 ### Task 21: Glossary manager service + API
 
 - [ ] CRUD for `GlossaryEntry` (term, translation, notes)

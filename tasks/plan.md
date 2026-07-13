@@ -133,6 +133,19 @@ Upload PDF/Text
 - [x] 81/81 tests pass
 - [x] Manual test: tách "Part One/Interlude/Part Two" từ text không có standard markers
 
+### Phase 4.7: Translation Prompt Refinement
+
+- [ ] **Task P1:** Nới lỏng Nguyên tắc 1 — cho phép tách/gộp câu khi câu Anh phức tạp
+- [ ] **Task P2:** Gộp Nguyên tắc 3 (Bản địa hoá) + Nguyên tắc 5 (Tự nhiên mượt mà) → một nguyên tắc duy nhất
+- [ ] **Task P3:** Sửa Nguyên tắc 7 (Emotion cues) — chỉ chèn khi gốc là kịch bản/game, văn xuôi thì hoà cảm xúc vào lời thoại
+- [ ] **Task P4:** Cập nhật `test_translator.py` — assert emotion cues instruction thay đổi, vẫn pass
+- [ ] **Task P5:** Dịch lại `example_1.txt` theo prompt mới, so sánh chất lượng
+
+### Checkpoint: Prompt Refinement — DONE
+- [ ] Prompt không còn mâu thuẫn nội tại
+- [ ] 81/81 tests pass
+- [ ] Bản dịch example_1 tự nhiên hơn, không còn cue cứng nhắc
+
 ### Phase 5: Enhancement — Research & Glossary
 
 - [ ] **Task 21:** Glossary manager service + API (CRUD, persist per project)
